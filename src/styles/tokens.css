@@ -1,0 +1,6 @@
+:root {
+  --color-background: #f4eee3; --color-surface: #fffaf3; --color-text: #332f2a; --color-muted: #756f67;
+  --color-accent: #71885d; --color-accent-dark: #526942; --color-accent-soft: #e1ead8; --color-border: #d8d0c4;
+  --color-earth: #a77b58; --color-sky: #dcebed; --shadow: 0 8px 24px rgb(71 57 43 / 10%);
+  --radius-small: 10px; --radius-medium: 16px; --radius-large: 24px; --tap-size: 44px;
+}

@@ -1,0 +1,2 @@
+import type { MapId } from "../../domain/maps/mapTypes";
+export const CurrentStatus = (mapId: MapId): HTMLElement => { const section = document.createElement("section"); section.className = "content-card current-status"; section.innerHTML = `<h2>現在の様子</h2><p>${mapId === "starter_house_interior" ? "サムは作業台で道具を整理しています。" : "サムは家の中にいます。"}</p>`; return section; };
