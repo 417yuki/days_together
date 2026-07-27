@@ -1,0 +1,6 @@
+#app { width: 100%; }
+.app-shell { position: relative; width: min(100%, 480px); min-height: 100dvh; margin: 0 auto; background: var(--color-background); box-shadow: 0 0 30px rgb(50 40 30 / 8%); }
+main { display: grid; gap: 14px; padding: 12px 14px calc(96px + env(safe-area-inset-bottom)); }
+.status-header { display: flex; align-items: center; justify-content: space-between; padding: max(14px, env(safe-area-inset-top)) 16px 10px; border-bottom: 1px solid var(--color-border); background: rgb(255 250 243 / 92%); }
+.bottom-navigation { position: fixed; z-index: 20; bottom: 0; left: 50%; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); width: min(100%, 480px); padding: 6px 5px max(6px, env(safe-area-inset-bottom)); transform: translateX(-50%); border-top: 1px solid var(--color-border); background: rgb(255 250 243 / 97%); box-shadow: 0 -4px 18px rgb(50 40 30 / 8%); }
+@media (min-width: 481px) { body { padding-block: 12px; } .app-shell { border-radius: 28px; overflow: hidden; } }

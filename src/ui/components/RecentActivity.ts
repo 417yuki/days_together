@@ -1,0 +1,1 @@
+export const RecentActivity = (): HTMLElement => { const section = document.createElement("section"); section.className = "content-card"; section.innerHTML = `<h2>最近の出来事</h2><ul class="activity-list"><li>小さな家での生活が始まりました</li><li>サムは作業台を確認しています</li><li>庭は穏やかに晴れています</li></ul>`; return section; };
