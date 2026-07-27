@@ -13,7 +13,7 @@ export type ScreenActions = { map: (id: MapId) => void; navigation: (id: Navigat
 export const HomeScreen = (state: AppState, actions: ScreenActions, selectedLocation: string | null, onSelect: (label: string) => void): HTMLElement => {
   const shell = document.createElement("div"); shell.className = "app-shell"; const map = getMapById(state.viewedMapId); shell.append(Header(map, () => actions.developer(true)));
   const main = document.createElement("main");
-  if (state.activeNavigation === "map") main.append(MapView({ map, selectedLocation, onMapChange: actions.map, onLocation: (location) => handleLocation(location, map.mapId, actions, onSelect), onResidents: () => showDialog("ふたりの居場所", "主人公：テーブル\nサム：作業台", "わかりました") }), CurrentStatus(map.mapId), RecentActivity());
+  if (state.activeNavigation === "map") main.append(MapView({ map, selectedLocation, onMapChange: actions.map, onLocation: (location) => handleLocation(location, map.mapId, actions, onSelect), onResidents: () => showDialog("ふたりの居場所", "主人公：テーブル\nコーディ：作業台", "わかりました") }), CurrentStatus(map.mapId), RecentActivity());
   else { const pending = document.createElement("section"); pending.className = "content-card pending-screen"; pending.innerHTML = `<p class="eyebrow">ただいま準備中</p><h2>${navigationLabels[state.activeNavigation]}画面は準備中です</h2><p>これからの暮らしと一緒に、少しずつ増えていきます。</p>`; main.append(pending); }
   shell.append(main, BottomNavigation(state.activeNavigation, actions.navigation));
   if (state.developerPanelOpen) shell.append(DeveloperPanel(state, { close: () => actions.developer(false), interior: () => actions.map("starter_house_interior"), garden: () => actions.map("starter_garden"), reset: actions.reset }));
