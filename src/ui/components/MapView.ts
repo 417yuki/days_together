@@ -12,9 +12,9 @@ export const MapView = ({ map, selectedLocation, onMapChange, onLocation, onResi
   if (map.mapType === "outdoor") { const house = document.createElement("button"); house.className = "house-panel"; house.type = "button"; house.innerHTML = `<span class="house-roof" aria-hidden="true"></span><strong>小さな家</strong><span>家の外観</span>`; house.setAttribute("aria-label", "家の外観。家の中へ入る"); house.addEventListener("click", () => onLocation(map.locations[0])); canvas.append(house); }
   map.locations.forEach((location) => { const button = document.createElement("button"); button.type = "button"; button.className = "map-location"; button.textContent = location.label; button.style.left = `${location.position.x * 100}%`; button.style.top = `${location.position.y * 100}%`; button.addEventListener("click", () => onLocation(location)); canvas.append(button); });
   if (map.mapType === "interior") {
-    canvas.append(character("U", "主人公：テーブル", 29, 55), character("S", "サム：作業台", 76, 31));
+    canvas.append(character("U", "主人公：テーブル", 29, 55), character("C", "コーディ：作業台", 76, 31));
   } else {
-    const residents = document.createElement("button"); residents.type = "button"; residents.className = "residents-pin"; residents.innerHTML = `<strong>U・S</strong><span>家の中にいます</span>`; residents.setAttribute("aria-label", "家の中にいる二人の居場所を確認"); residents.addEventListener("click", onResidents); canvas.append(residents);
+    const residents = document.createElement("button"); residents.type = "button"; residents.className = "residents-pin"; residents.innerHTML = `<strong>U・C</strong><span>家の中にいます</span>`; residents.setAttribute("aria-label", "家の中にいる二人の居場所を確認"); residents.addEventListener("click", onResidents); canvas.append(residents);
   }
   const feedback = document.createElement("p"); feedback.className = "map-feedback"; feedback.setAttribute("aria-live", "polite"); feedback.textContent = selectedLocation ? `「${selectedLocation}」を選択しました` : "場所を選んでみましょう";
   section.append(heading, tabs, canvas, feedback); return section;
