@@ -16,7 +16,9 @@
    - 画像なしでも使えるアイテム一覧、詳細、マップ表示と汎用アイコン
 4. [`ROADMAP.md`](./ROADMAP.md)
    - 現在地、次の作業、各Milestoneの完成条件
-5. [`CHANGE_CONTROL.md`](./CHANGE_CONTROL.md)
+5. [`NEXT_TASK.md`](./NEXT_TASK.md)
+   - Codexが現在実装する一件だけの詳細仕様
+6. [`CHANGE_CONTROL.md`](./CHANGE_CONTROL.md)
    - ゴールポストを動かさないための変更手順、確定済み判断
 
 ## 現在の確定状態
@@ -42,14 +44,14 @@
 
 - Milestone 0：Vite＋TypeScriptの土台
 - Milestone 1：室内・庭の仮画面
+- Milestone 1.1：縦長3:4マップ、キャラクター位置の地点連動、安全な文字描画、CI
 
 ### 次に行う
 
-- Milestone 1.1：縦長マップ比率、キャラクター位置の地点連動、安全な文字描画、CI
+- Milestone 2：主人公の地点移動、最短経路、家と庭のゲート移動、開発者パネルからのコーディ移動
 
 ### その後
 
-- Milestone 2：主人公とパートナーの移動
 - Milestone 3：IndexedDB保存
 - Milestone 4：パートナー自律行動
 - Milestone 5以降：イベント、手動相談、カスタム素材、思い出、バックアップ
