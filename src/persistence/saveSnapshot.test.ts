@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { initialState } from "../app/Store";
+import { codyPresetDialogues, codyPresetProfile } from "../domain/partner/partnerProfile";
 import { createSaveSnapshot, restoreAppState } from "./saveSnapshot";
 import { MAIN_SAVE_SLOT_ID, type StoredSaveData } from "./persistenceTypes";
 
@@ -40,5 +41,21 @@ describe("save snapshots", () => {
   it("restores only five known recent actions and starts idle", () => {
     const state = restoreAppState(initialState, { worldState: { recentPartnerActionIds: ["cook", "unknown", "garden", "rest", "craft", "join_user", "inspect_item"] }, characters: [] });
     expect(state.partnerActivity).toEqual(expect.objectContaining({ enabled: true, phase: "idle", actionId: null, recentActionIds: ["cook", "garden", "rest", "craft", "join_user"] }));
+  });
+
+  it("restores dialogues from the current history revision instead of stale active rows", () => {
+    const profile = { ...codyPresetProfile, revision: 2, source: "manual_setup" as const, displayName: "相棒", updatedAt: "2026-07-28T08:00:00.000Z" };
+    const historyDialogues = codyPresetDialogues.map((line) => ({ ...line }));
+    const staleDialogue = { ...codyPresetDialogues[0], dialogueId: "future-rest-line", text: "後の版で追加された台詞", sourceRevision: 3 };
+    const state = restoreAppState(initialState, {
+      worldState: {},
+      characters: [],
+      partnerProfiles: [{ saveSlotId: MAIN_SAVE_SLOT_ID, ...profile }],
+      partnerProfileHistory: [{ saveSlotId: MAIN_SAVE_SLOT_ID, profileId: "main_partner", revision: 2, profile, dialogues: historyDialogues }],
+      dialogues: [...historyDialogues.map((line) => ({ saveSlotId: MAIN_SAVE_SLOT_ID, ...line })), { saveSlotId: MAIN_SAVE_SLOT_ID, ...staleDialogue }]
+    });
+    expect(state.partnerProfile.revision).toBe(2);
+    expect(state.partnerDialogues).toHaveLength(historyDialogues.length);
+    expect(state.partnerDialogues.some(({ dialogueId }) => dialogueId === staleDialogue.dialogueId)).toBe(false);
   });
 });
