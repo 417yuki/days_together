@@ -1,5 +1,7 @@
 export type MapId = "starter_house_interior" | "starter_garden";
 
+export type LocationRef = { mapId: MapId; locationId: string };
+
 export type LocationDefinition = {
   locationId: string;
   label: string;
