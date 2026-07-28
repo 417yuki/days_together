@@ -1,4 +1,4 @@
-import type { AppState } from "../app/Store";
+import { createEmptyItemDraft, type AppState } from "../app/Store";
 import { starterMaps } from "../data/starterMaps";
 import type { CharacterId, CharacterState } from "../domain/characters/characterTypes";
 import type { MapId } from "../domain/maps/mapTypes";
@@ -72,7 +72,7 @@ export const restoreAppState = (initial: AppState, saved: StoredSaveData, now = 
     partnerActivity: { ...initial.partnerActivity, enabled: true, phase: "idle", actionId: null, destination: null, lineId: null, recentActionIds, lastDecision: null },
     partnerProfile, partnerDialogues, partnerHistory: partnerHistory.length ? partnerHistory : [{ profile: codyPresetProfile, dialogues: codyPresetDialogues }], pendingPartnerConsultation, partnerView: "profile", partnerResponse: "", partnerPreview: null, selectedPartnerRevision: null, partnerMessage: "",
     characters: initial.characters.map((fallback) => { const restored = validCharacters.get(fallback.characterId) ?? { ...fallback }; return restored.characterId === "cody" ? { ...restored, name: partnerProfile.displayName } : restored; }),
-    items: mergeStarterItems(saved.items ?? []), itemView: "list", selectedItemId: null, itemMessage: ""
+    items: mergeStarterItems(saved.items ?? []), itemView: "list", selectedItemId: null, itemMessage: "", itemDraft: createEmptyItemDraft()
   };
 };
 
