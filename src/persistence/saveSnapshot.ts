@@ -10,6 +10,7 @@ import { parseAppliedExtension, parsePendingConsultation } from "../domain/consu
 import { isSafeAssetId } from "../domain/assets/itemImages";
 import { mergeStarterItems } from "../domain/items/items";
 import { MAP_BACKGROUND_IDS, parseMapVisual } from "../domain/assets/mapBackgrounds";
+import { normalizeCharacterPinVisual } from "../domain/characters/characterPinVisual";
 
 const characterIds: CharacterId[] = ["user", "cody"];
 const mapIds = new Set<MapId>(starterMaps.map(({ mapId }) => mapId));
@@ -20,7 +21,7 @@ export const createSaveSnapshot = (state: AppState): SaveSnapshot => ({
   worldStartedOn: state.worldStartedOn,
   unknownSprout: structuredClone(state.unknownSprout),
   unknownSproutExtension: structuredClone(state.unknownSproutExtension),
-  characters: state.characters.map(({ characterId, name, marker, mapId, locationId, imageAssetId }) => ({ characterId, name, marker, mapId, locationId, imageAssetId })), partnerProfile: structuredClone(state.partnerProfile), partnerDialogues: structuredClone(state.partnerDialogues), items: structuredClone(state.items)
+  characters: state.characters.map(({ characterId, name, marker, mapId, locationId, imageAssetId, pinVisual }) => ({ characterId, name, marker, mapId, locationId, imageAssetId, pinVisual: normalizeCharacterPinVisual(pinVisual) })), partnerProfile: structuredClone(state.partnerProfile), partnerDialogues: structuredClone(state.partnerDialogues), items: structuredClone(state.items)
 });
 
 export const restoreAppState = (initial: AppState, saved: StoredSaveData, now = new Date()): AppState => {
@@ -86,7 +87,7 @@ const parseCharacter = (value: unknown): CharacterState | null => {
   if (!candidate || candidate.saveSlotId !== MAIN_SAVE_SLOT_ID || !isCharacterId(candidate.characterId) || typeof candidate.name !== "string" || typeof candidate.marker !== "string" || !isMapId(candidate.mapId) || typeof candidate.locationId !== "string") return null;
   const map = starterMaps.find(({ mapId }) => mapId === candidate.mapId);
   if (!map?.locations.some(({ locationId }) => locationId === candidate.locationId)) return null;
-  return { characterId: candidate.characterId, name: candidate.name, marker: candidate.marker, mapId: candidate.mapId, locationId: candidate.locationId, imageAssetId: isSafeAssetId(candidate.imageAssetId) ? candidate.imageAssetId : null };
+  return { characterId: candidate.characterId, name: candidate.name, marker: candidate.marker, mapId: candidate.mapId, locationId: candidate.locationId, imageAssetId: isSafeAssetId(candidate.imageAssetId) ? candidate.imageAssetId : null, pinVisual: normalizeCharacterPinVisual(candidate.pinVisual) };
 };
 
 const record = (value: unknown): Record<string, unknown> | null => typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null;

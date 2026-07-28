@@ -5,6 +5,7 @@ import type { AppliedUnknownSproutExtension, ConsultationCheckpoint, PendingCons
 import type { PartnerProfileSnapshot, PendingPartnerConsultation } from "../domain/partner/partnerProfile";
 import type { CharacterPinAsset } from "../domain/assets/characterPins";
 import type { CharacterId } from "../domain/characters/characterTypes";
+import type { CharacterPinVisual } from "../domain/characters/characterPinVisual";
 import type { ItemImageAsset } from "../domain/assets/itemImages";
 import type { MapBackgroundAsset, MapBackgroundId } from "../domain/assets/mapBackgrounds";
 
@@ -50,6 +51,7 @@ export class SaveCoordinator {
   getCharacterPin(assetId: string, characterId: CharacterId) { return this.repository.getCharacterPin?.(assetId, characterId) ?? Promise.resolve(null); }
   putCharacterPin(characterId: CharacterId, asset: CharacterPinAsset) { return this.exclusive(async () => { if (!this.repository.putCharacterPin) throw new Error("人物画像を保存できません"); return this.repository.putCharacterPin(characterId, asset); }); }
   deleteCharacterPin(characterId: CharacterId) { return this.exclusive(async () => { if (!this.repository.deleteCharacterPin) throw new Error("人物画像を削除できません"); return this.repository.deleteCharacterPin(characterId); }); }
+  putCharacterPinVisual(characterId: CharacterId, visual: CharacterPinVisual) { return this.exclusive(async () => { if (!this.repository.putCharacterPinVisual) throw new Error("表示設定を保存できません"); return this.repository.putCharacterPinVisual(characterId, visual); }); }
   getMapBackground(assetId: string, mapId: MapBackgroundId) { return this.repository.getMapBackground?.(assetId, mapId) ?? Promise.resolve(null); }
   putMapBackground(mapId: MapBackgroundId, asset: MapBackgroundAsset) { return this.exclusive(async () => { if (!this.repository.putMapBackground) throw new Error("背景を保存できません"); return this.repository.putMapBackground(mapId, asset); }); }
   deleteMapBackground(mapId: MapBackgroundId) { return this.exclusive(async () => { if (!this.repository.deleteMapBackground) throw new Error("背景を削除できません"); return this.repository.deleteMapBackground(mapId); }); }

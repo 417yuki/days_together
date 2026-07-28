@@ -10,6 +10,7 @@ import type { AppliedUnknownSproutExtension, PendingConsultation, UnknownSproutC
 import { codyPresetDialogues, codyPresetProfile, type PartnerDialogueLine, type PartnerGameProfile, type PartnerProfileSnapshot, type PartnerResult, type PendingPartnerConsultation } from "../domain/partner/partnerProfile";
 import { starterItems, type GameItem, type ItemCategory } from "../domain/items/items";
 import type { MapBackgroundId, MapVisualState } from "../domain/assets/mapBackgrounds";
+import { DEFAULT_CHARACTER_PIN_VISUAL } from "../domain/characters/characterPinVisual";
 
 export type NavigationId = "map" | "items" | "memories" | "partner" | "settings";
 export type SaveStatus = "available" | "failed";
@@ -29,8 +30,8 @@ export const initialState: AppState = {
   partnerProfile: codyPresetProfile, partnerDialogues: codyPresetDialogues, partnerHistory: [{ profile: codyPresetProfile, dialogues: codyPresetDialogues }], pendingPartnerConsultation: null, partnerView: "profile", partnerResponse: "", partnerPreview: null, selectedPartnerRevision: null, partnerMessage: "",
   unknownSprout: initialUnknownSprout(), unknownSproutExtension: null, pendingConsultation: null, consultationView: "closed", consultationResponse: "", consultationPreview: null, consultationMessage: "", worldStartedOn: localDate(new Date()), openEventId: null,
   movements: {}, partnerActivity: { enabled: true, phase: "idle", actionId: null, destination: null, lineId: null, recentActionIds: [], lastDecision: null }, message: "場所を選んでみましょう", saveStatus: "available", characters: [
-    { characterId: "user", name: "主人公", marker: "U", mapId: "starter_house_interior", locationId: "table", imageAssetId: null },
-    { characterId: "cody", name: "コーディ", marker: "C", mapId: "starter_house_interior", locationId: "workbench", imageAssetId: null }
+    { characterId: "user", name: "主人公", marker: "U", mapId: "starter_house_interior", locationId: "table", imageAssetId: null, pinVisual: { ...DEFAULT_CHARACTER_PIN_VISUAL } },
+    { characterId: "cody", name: "コーディ", marker: "C", mapId: "starter_house_interior", locationId: "workbench", imageAssetId: null, pinVisual: { ...DEFAULT_CHARACTER_PIN_VISUAL } }
   ]
 };
 type Listener = (state: AppState) => void;
