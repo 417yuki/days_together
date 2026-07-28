@@ -10,4 +10,4 @@
 .residents-pin { position: absolute; z-index: 6; display: flex; min-width: 112px; max-width: 70%; flex-direction: column; transform: translate(-50%, -100%); border-color: var(--color-accent-dark); background: var(--color-surface); font-size: .68rem; }.residents-pin strong { color: var(--color-accent-dark); font-size: .95rem; }
 .map-feedback { min-height: 42px; margin: 0; padding: 10px 14px 8px; color: var(--color-muted); font-size: .82rem; text-align: center; }
 @media (max-width: 350px) { .map-location { min-width: 60px; padding-inline: 7px; font-size: .78rem; } main { padding-inline: 10px; } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } .character-pin { animation: none !important; } }

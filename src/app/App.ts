@@ -2,20 +2,24 @@ import { Store } from "./Store";
 import { HomeScreen } from "../ui/screens/HomeScreen";
 import type { CharacterId } from "../domain/characters/characterTypes";
 import type { LocationRef } from "../domain/maps/mapTypes";
+import type { SaveCoordinator } from "../persistence/saveCoordinator";
 
 const MOVEMENT_STEP_MS = 380;
 
 export class App {
   private movementTimers = new Map<CharacterId, number>();
-  constructor(private root: HTMLElement, private store = new Store()) {}
-  mount(): void { this.store.subscribe(() => this.render()); this.render(); }
+  constructor(private root: HTMLElement, private store = new Store(), private saves?: SaveCoordinator) {}
+  mount(): void {
+    this.store.subscribe((state) => { this.render(); void this.saves?.save(state); });
+    this.render();
+  }
   private render(): void {
     const actions = {
       map: (id: Parameters<Store["setViewedMap"]>[0]) => this.store.setViewedMap(id),
       navigation: (id: Parameters<Store["setNavigation"]>[0]) => this.store.setNavigation(id),
       developer: (open?: boolean) => this.store.toggleDeveloperPanel(open),
       move: (characterId: CharacterId, destination: LocationRef) => this.move(characterId, destination),
-      reset: () => { this.stopTimers(); this.store.reset(); }
+      reset: () => { this.stopTimers(); this.store.reset(); void this.saves?.save(this.store.getState(), true); }
     };
     this.root.replaceChildren(HomeScreen(this.store.getState(), actions));
   }

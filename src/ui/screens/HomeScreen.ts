@@ -15,6 +15,9 @@ export type ScreenActions = { map: (id: MapId) => void; navigation: (id: Navigat
 export const HomeScreen = (state: AppState, actions: ScreenActions): HTMLElement => {
   const shell = document.createElement("div"); shell.className = "app-shell"; const map = getMapById(state.viewedMapId); shell.append(Header(map, () => actions.developer(true)));
   const main = document.createElement("main");
+  if (state.saveStatus === "failed") {
+    const warning = document.createElement("p"); warning.className = "save-warning"; warning.setAttribute("role", "status"); warning.setAttribute("aria-live", "polite"); warning.textContent = "保存できませんでした。この画面を閉じると変更が失われる可能性があります。"; main.append(warning);
+  }
   if (state.activeNavigation === "map") {
     main.append(
       MapView({ map, characters: state.characters, feedback: state.message, onMapChange: actions.map, onLocation: (location) => actions.move("user", { mapId: map.mapId, locationId: location.locationId }), onHouse: () => actions.map("starter_house_interior"), onResidents: (trigger) => showResidentsDialog(state, trigger) }),
