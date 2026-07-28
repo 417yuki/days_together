@@ -9,6 +9,7 @@ import { advanceUnknownSprout, initialUnknownSprout, localDate, makeUnknownSprou
 import type { AppliedUnknownSproutExtension, PendingConsultation, UnknownSproutConsultationResult } from "../domain/consultation/unknownSproutConsultation";
 import { codyPresetDialogues, codyPresetProfile, type PartnerDialogueLine, type PartnerGameProfile, type PartnerProfileSnapshot, type PartnerResult, type PendingPartnerConsultation } from "../domain/partner/partnerProfile";
 import { starterItems, type GameItem, type ItemCategory } from "../domain/items/items";
+import type { MapBackgroundId, MapVisualState } from "../domain/assets/mapBackgrounds";
 
 export type NavigationId = "map" | "items" | "memories" | "partner" | "settings";
 export type SaveStatus = "available" | "failed";
@@ -18,8 +19,9 @@ export type PartnerView = "profile" | "consult" | "confirm" | "history" | "histo
 export type ItemView = "list" | "detail" | "create";
 export type ItemDraft = { name: string; category: ItemCategory; description: string };
 export const createEmptyItemDraft = (): ItemDraft => ({ name: "", category: "food", description: "" });
-export type AppState = { items: GameItem[]; itemView: ItemView; selectedItemId: string | null; itemMessage: string; itemDraft: ItemDraft; viewedMapId: MapId; activeNavigation: NavigationId; developerPanelOpen: boolean; characters: CharacterState[]; movements: Partial<Record<CharacterId, MovementState>>; partnerActivity: PartnerActivityState; partnerProfile: PartnerGameProfile; partnerDialogues: PartnerDialogueLine[]; partnerHistory: PartnerProfileSnapshot[]; pendingPartnerConsultation: PendingPartnerConsultation | null; partnerView: PartnerView; partnerResponse: string; partnerPreview: PartnerResult | null; selectedPartnerRevision: number | null; partnerMessage: string; unknownSprout: UnknownSproutState; unknownSproutExtension: AppliedUnknownSproutExtension | null; pendingConsultation: PendingConsultation | null; consultationView: ConsultationView; consultationResponse: string; consultationPreview: UnknownSproutConsultationResult | null; consultationMessage: string; worldStartedOn: string; openEventId: EventId | null; message: string; saveStatus: SaveStatus };
+export type AppState = { mapVisuals: Record<MapBackgroundId, MapVisualState>; items: GameItem[]; itemView: ItemView; selectedItemId: string | null; itemMessage: string; itemDraft: ItemDraft; viewedMapId: MapId; activeNavigation: NavigationId; developerPanelOpen: boolean; characters: CharacterState[]; movements: Partial<Record<CharacterId, MovementState>>; partnerActivity: PartnerActivityState; partnerProfile: PartnerGameProfile; partnerDialogues: PartnerDialogueLine[]; partnerHistory: PartnerProfileSnapshot[]; pendingPartnerConsultation: PendingPartnerConsultation | null; partnerView: PartnerView; partnerResponse: string; partnerPreview: PartnerResult | null; selectedPartnerRevision: number | null; partnerMessage: string; unknownSprout: UnknownSproutState; unknownSproutExtension: AppliedUnknownSproutExtension | null; pendingConsultation: PendingConsultation | null; consultationView: ConsultationView; consultationResponse: string; consultationPreview: UnknownSproutConsultationResult | null; consultationMessage: string; worldStartedOn: string; openEventId: EventId | null; message: string; saveStatus: SaveStatus };
 export const initialState: AppState = {
+  mapVisuals: { starter_house_interior: { saveSlotId: "main", mapId: "starter_house_interior", backgroundAssetId: null, updatedAt: new Date(0).toISOString() }, starter_garden: { saveSlotId: "main", mapId: "starter_garden", backgroundAssetId: null, updatedAt: new Date(0).toISOString() } },
   items: structuredClone(starterItems), itemView: "list", selectedItemId: null, itemMessage: "", itemDraft: createEmptyItemDraft(),
   viewedMapId: "starter_house_interior",
   activeNavigation: "map",
@@ -47,6 +49,7 @@ export class Store {
   cacheItemDraft(next: Partial<ItemDraft>): void { this.state = { ...this.state, itemDraft: { ...this.state.itemDraft, ...next } }; }
   addItem(item: GameItem): void { this.update({ items: [...this.state.items, structuredClone(item)], itemView: "detail", selectedItemId: item.itemId, itemMessage: "アイテムを登録しました。", itemDraft: createEmptyItemDraft() }); }
   replaceItem(item: GameItem, itemMessage: string): void { this.update({ items: this.state.items.map((value) => value.itemId === item.itemId ? structuredClone(item) : value), itemMessage }); }
+  replaceMapVisual(visual: MapVisualState): void { this.update({ mapVisuals: { ...this.state.mapVisuals, [visual.mapId]: { ...visual } } }); }
   replaceCharacter(character: CharacterState): void { this.update({ characters: this.state.characters.map((value) => value.characterId === character.characterId ? { ...character } : value) }); }
   toggleDeveloperPanel(force?: boolean): void { this.update({ developerPanelOpen: force ?? !this.state.developerPanelOpen }); }
   setSaveStatus(saveStatus: SaveStatus): void { if (this.state.saveStatus !== saveStatus) this.update({ saveStatus }); }

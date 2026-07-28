@@ -15,14 +15,16 @@ type MapViewOptions = {
   unknownSprout: UnknownSproutState;
   onEvent: (trigger: HTMLElement) => void;
   characterImages?: Partial<Record<"user" | "cody", string>>;
+  backgroundUrl?: string;
 };
 
-export const MapView = ({ map, characters, characterImages = {}, feedback: feedbackText, onMapChange, onLocation, onHouse, onResidents, unknownSprout, onEvent }: MapViewOptions): HTMLElement => {
+export const MapView = ({ map, characters, characterImages = {}, backgroundUrl, feedback: feedbackText, onMapChange, onLocation, onHouse, onResidents, unknownSprout, onEvent }: MapViewOptions): HTMLElement => {
   const section = document.createElement("section"); section.className = "map-section"; section.setAttribute("aria-labelledby", "map-heading");
   const heading = document.createElement("h2"); heading.id = "map-heading"; heading.className = "visually-hidden"; heading.textContent = `${map.name}のマップ`;
   const tabs = document.createElement("div"); tabs.className = "map-tabs"; tabs.setAttribute("role", "group"); tabs.setAttribute("aria-label", "表示するマップ");
   starterMaps.forEach(({ mapId, name }) => { const button = document.createElement("button"); button.type = "button"; button.textContent = name; if (mapId === map.mapId) { button.className = "is-active"; button.setAttribute("aria-current", "true"); } button.addEventListener("click", () => onMapChange(mapId)); tabs.append(button); });
   const canvas = document.createElement("div"); canvas.className = `map-canvas map-canvas--${map.mapType}`; canvas.setAttribute("aria-label", map.name);
+  if (backgroundUrl) { const background = document.createElement("img"); background.className = "map-background-image"; background.src = backgroundUrl; background.alt = ""; background.setAttribute("aria-hidden", "true"); canvas.append(background); }
   if (map.mapType === "outdoor") {
     const house = document.createElement("button"); house.className = "house-panel"; house.type = "button";
     const roof = document.createElement("span"); roof.className = "house-roof"; roof.setAttribute("aria-hidden", "true");
