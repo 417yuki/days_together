@@ -8,7 +8,7 @@ const character = (characterId: string, mapId: string, locationId: string) => ({
 describe("save snapshots", () => {
   it("extracts only the stable map and character fields", () => {
     const snapshot = createSaveSnapshot({ ...initialState, activeNavigation: "settings", developerPanelOpen: true, message: "temporary", movements: { user: { path: [], nextIndex: 1, destination: { mapId: "starter_garden", locationId: "garden" } } } });
-    expect(snapshot).toEqual({ viewedMapId: "starter_house_interior", characters: initialState.characters });
+    expect(snapshot).toEqual({ viewedMapId: "starter_house_interior", recentPartnerActionIds: [], characters: initialState.characters });
     expect(snapshot).not.toHaveProperty("movements"); expect(snapshot).not.toHaveProperty("message"); expect(snapshot).not.toHaveProperty("developerPanelOpen");
   });
 
@@ -35,5 +35,10 @@ describe("save snapshots", () => {
     const state = restoreAppState(initialState, { worldState: {}, characters: [character("cody", "starter_garden", "garden")] });
     expect(state.characters[0]).toEqual(initialState.characters[0]);
     expect(state.characters[1]).toEqual(expect.objectContaining({ mapId: "starter_garden", locationId: "garden" }));
+  });
+
+  it("restores only five known recent actions and starts idle", () => {
+    const state = restoreAppState(initialState, { worldState: { recentPartnerActionIds: ["cook", "unknown", "garden", "rest", "craft", "join_user", "inspect_item"] }, characters: [] });
+    expect(state.partnerActivity).toEqual(expect.objectContaining({ enabled: true, phase: "idle", actionId: null, recentActionIds: ["cook", "garden", "rest", "craft", "join_user"] }));
   });
 });

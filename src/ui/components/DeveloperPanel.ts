@@ -2,20 +2,23 @@ import type { AppState } from "../../app/Store";
 import { starterMaps } from "../../data/starterMaps";
 import { getMapById } from "../../domain/maps/mapSelectors";
 import type { LocationRef } from "../../domain/maps/mapTypes";
+import { ACTION_DEFINITIONS } from "../../domain/partner/partnerActions";
 
-export const DeveloperPanel = (state: AppState, actions: { close: () => void; interior: () => void; garden: () => void; moveCody: (destination: LocationRef) => void; reset: () => void }): HTMLElement => {
+export const DeveloperPanel = (state: AppState, actions: { close: () => void; interior: () => void; garden: () => void; moveCody: (destination: LocationRef) => void; pausePartner: () => void; resumePartner: () => void; decidePartner: () => void; reset: () => void }): HTMLElement => {
   const aside = document.createElement("aside"); aside.className = "developer-panel"; aside.setAttribute("aria-labelledby", "developer-title");
   const heading = document.createElement("div"); heading.className = "panel-heading";
   const title = document.createElement("h2"); title.id = "developer-title"; title.textContent = "開発者パネル"; heading.append(title, makeButton("閉じる", actions.close, "panel-close"));
   const details = document.createElement("dl");
   appendDetail(details, "マップID", state.viewedMapId); appendDetail(details, "ナビゲーション", state.activeNavigation);
   state.characters.forEach((character) => { const location = getMapById(character.mapId).locations.find((candidate) => candidate.locationId === character.locationId); appendDetail(details, `${character.name}の現在地`, `${character.mapId}:${location?.label ?? character.locationId}`); });
+  const activity = state.partnerActivity; appendDetail(details, "自律行動", activity.enabled ? "有効" : "一時停止"); appendDetail(details, "phase", activity.phase); appendDetail(details, "現在の行動", activity.actionId ? ACTION_DEFINITIONS[activity.actionId].label : "なし"); appendDetail(details, "目的地", activity.destination ? `${activity.destination.mapId}:${activity.destination.locationId}` : "なし"); appendDetail(details, "直近5行動", activity.recentActionIds.join(", ") || "なし");
   const controls = document.createElement("div"); controls.className = "developer-actions"; controls.append(makeButton("室内を表示", actions.interior), makeButton("庭を表示", actions.garden), makeButton("初期状態へ戻す", actions.reset));
-  const moveLabel = document.createElement("label"); moveLabel.textContent = "コーディの移動先"; const select = document.createElement("select"); select.disabled = Boolean(state.movements.cody);
-  const prompt = document.createElement("option"); prompt.textContent = state.movements.cody ? "移動中です" : "地点を選択"; prompt.value = ""; select.append(prompt);
+  controls.prepend(makeButton(activity.enabled ? "自律行動を一時停止" : "自律行動を再開", activity.enabled ? actions.pausePartner : actions.resumePartner)); const decide = makeButton("次の行動を今すぐ選ぶ", actions.decidePartner); decide.disabled = !activity.enabled || activity.phase !== "idle"; controls.prepend(decide);
+  const moveLabel = document.createElement("label"); moveLabel.textContent = "コーディの移動先"; const select = document.createElement("select"); select.disabled = activity.enabled || Boolean(state.movements.cody);
+  const prompt = document.createElement("option"); prompt.textContent = activity.enabled ? "自律行動中は手動移動できません" : state.movements.cody ? "移動中です" : "地点を選択"; prompt.value = ""; select.append(prompt);
   starterMaps.forEach((map) => map.locations.forEach((location) => { const option = document.createElement("option"); option.value = `${map.mapId}:${location.locationId}`; option.textContent = `${map.name}：${location.label}`; select.append(option); }));
   select.addEventListener("change", () => { const [mapId, locationId] = select.value.split(":") as [LocationRef["mapId"], string]; if (mapId && locationId) actions.moveCody({ mapId, locationId }); }); moveLabel.append(select);
-  aside.append(heading, details, moveLabel, controls); return aside;
+  aside.append(heading, details, moveLabel, controls); if (activity.lastDecision) { const scores = document.createElement("div"); scores.className = "decision-scores"; const scoreTitle = document.createElement("h3"); scoreTitle.textContent = "最後の点数内訳"; scores.append(scoreTitle); activity.lastDecision.candidates.forEach((score) => { const row = document.createElement("p"); const selected = score.actionId === activity.lastDecision?.selectedActionId ? "選択：" : ""; row.textContent = `${selected}${ACTION_DEFINITIONS[score.actionId].label} → ${score.destination.locationId} | base ${score.base}, personality ${score.personality}, preference ${score.preference}, repetition ${score.repetition}, randomJitter ${score.randomJitter}, total ${score.total}, weight ${score.weight}`; scores.append(row); }); aside.append(scores); } return aside;
 };
 
 const appendDetail = (list: HTMLDListElement, label: string, value: string): void => {
