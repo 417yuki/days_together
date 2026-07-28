@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACTION_DEFINITIONS, chooseLine, chooseWeightedAction, createActionCandidates, scoreCandidates } from "./partnerActions";
+import { ACTION_DEFINITIONS, actionIds, chooseLine, chooseWeightedAction, createActionCandidates, scoreCandidates } from "./partnerActions";
 
 const cody = { mapId: "starter_house_interior" as const, locationId: "workbench" };
 const user = { mapId: "starter_house_interior" as const, locationId: "table" };
@@ -9,6 +9,15 @@ describe("partner actions", () => {
     expect(Object.keys(ACTION_DEFINITIONS)).toEqual(["rest", "cook", "garden", "craft", "join_user", "inspect_item"]);
     const candidates = createActionCandidates(cody, user); const destinations = Object.fromEntries(candidates.map(({ actionId, destination }) => [actionId, destination.locationId]));
     expect(destinations).toEqual({ rest: "sofa", cook: "kitchen", garden: "garden", craft: "workbench", join_user: "table", inspect_item: "workbench" });
+  });
+
+  it("provides complete Japanese phrases for ongoing and started activity messages", () => {
+    expect(actionIds.map((id) => ACTION_DEFINITIONS[id].ongoingText)).toEqual([
+      "休憩しています", "料理をしています", "庭仕事をしています", "工作をしています", "主人公のそばで過ごしています", "周囲を調べています"
+    ]);
+    expect(actionIds.map((id) => ACTION_DEFINITIONS[id].startedText)).toEqual([
+      "休憩を始めました", "料理を始めました", "庭仕事を始めました", "工作を始めました", "主人公のそばで過ごし始めました", "周囲を調べ始めました"
+    ]);
   });
 
   it("takes a snapshot of the user's location and keeps one inspect candidate", () => {

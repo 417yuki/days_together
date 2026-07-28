@@ -3,19 +3,19 @@ import { buildLocationGraph, findShortestPath } from "../movement/movement";
 import type { LocationRef } from "../maps/mapTypes";
 
 export type ActionId = "rest" | "cook" | "garden" | "craft" | "join_user" | "inspect_item";
-export type ActionDefinition = { actionId: ActionId; label: string; baseScore: number; durationMs: number; lineIds: string[] };
+export type ActionDefinition = { actionId: ActionId; label: string; ongoingText: string; startedText: string; baseScore: number; durationMs: number; lineIds: string[] };
 export type ActionCandidate = { actionId: ActionId; destination: LocationRef };
 export type ActionScoreBreakdown = ActionCandidate & { base: number; personality: number; preference: number; repetition: number; randomJitter: number; total: number; weight: number };
 export type ActionDecisionDebug = { candidates: ActionScoreBreakdown[]; selectedActionId: ActionId; selectedDestination: LocationRef; sequence: number };
 export type RandomSource = () => number;
 
 export const ACTION_DEFINITIONS: Record<ActionId, ActionDefinition> = {
-  rest: { actionId: "rest", label: "休憩する", baseScore: 32, durationMs: 12000, lineIds: ["rest-1", "rest-2"] },
-  cook: { actionId: "cook", label: "料理する", baseScore: 30, durationMs: 14000, lineIds: ["cook-1", "cook-2"] },
-  garden: { actionId: "garden", label: "庭仕事をする", baseScore: 30, durationMs: 16000, lineIds: ["garden-1", "garden-2"] },
-  craft: { actionId: "craft", label: "工作する", baseScore: 30, durationMs: 15000, lineIds: ["craft-1", "craft-2"] },
-  join_user: { actionId: "join_user", label: "主人公のそばで過ごす", baseScore: 36, durationMs: 10000, lineIds: ["join-1", "join-2"] },
-  inspect_item: { actionId: "inspect_item", label: "周囲を調べる", baseScore: 28, durationMs: 9000, lineIds: ["inspect-1", "inspect-2"] }
+  rest: { actionId: "rest", label: "休憩する", ongoingText: "休憩しています", startedText: "休憩を始めました", baseScore: 32, durationMs: 12000, lineIds: ["rest-1", "rest-2"] },
+  cook: { actionId: "cook", label: "料理する", ongoingText: "料理をしています", startedText: "料理を始めました", baseScore: 30, durationMs: 14000, lineIds: ["cook-1", "cook-2"] },
+  garden: { actionId: "garden", label: "庭仕事をする", ongoingText: "庭仕事をしています", startedText: "庭仕事を始めました", baseScore: 30, durationMs: 16000, lineIds: ["garden-1", "garden-2"] },
+  craft: { actionId: "craft", label: "工作する", ongoingText: "工作をしています", startedText: "工作を始めました", baseScore: 30, durationMs: 15000, lineIds: ["craft-1", "craft-2"] },
+  join_user: { actionId: "join_user", label: "主人公のそばで過ごす", ongoingText: "主人公のそばで過ごしています", startedText: "主人公のそばで過ごし始めました", baseScore: 36, durationMs: 10000, lineIds: ["join-1", "join-2"] },
+  inspect_item: { actionId: "inspect_item", label: "周囲を調べる", ongoingText: "周囲を調べています", startedText: "周囲を調べ始めました", baseScore: 28, durationMs: 9000, lineIds: ["inspect-1", "inspect-2"] }
 };
 export const ACTION_LINES: Record<string, string> = {
   "rest-1": "少しひと休みしようかな。", "rest-2": "ここで息を整えておくよ。",
