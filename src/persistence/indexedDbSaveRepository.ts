@@ -2,6 +2,8 @@ import { DB_NAME, DB_VERSION, MAIN_SAVE_SLOT_ID, STORE_NAMES, type CharacterReco
 import { codyPresetDialogues, codyPresetProfile, type PartnerDialogueLine } from "../domain/partner/partnerProfile";
 import { parseAssetMetadata, validateItemImage, type ItemImageAsset } from "../domain/assets/itemImages";
 import { parseItem, type GameItem } from "../domain/items/items";
+import { parseCharacterPinMetadata, type CharacterPinAsset } from "../domain/assets/characterPins";
+import type { CharacterId, CharacterState } from "../domain/characters/characterTypes";
 
 export class IndexedDbSaveRepository implements SaveRepository {
   private database: Promise<IDBDatabase> | undefined;
@@ -78,7 +80,7 @@ export class IndexedDbSaveRepository implements SaveRepository {
     const transaction = db.transaction([STORE_NAMES.assets, STORE_NAMES.assetBlobs], "readonly");
     const [rawMetadata, rawBlob] = await Promise.all([request(transaction.objectStore(STORE_NAMES.assets).get([MAIN_SAVE_SLOT_ID, assetId])), request(transaction.objectStore(STORE_NAMES.assetBlobs).get([MAIN_SAVE_SLOT_ID, assetId]))]);
     await transactionDone(transaction);
-    const metadata = parseAssetMetadata(rawMetadata);
+    const metadata = parseAssetMetadata(rawMetadata, "item_image");
     const blob = rawBlob && typeof rawBlob === "object" ? (rawBlob as { blob?: unknown }).blob : null;
     if (!metadata || !(blob instanceof Blob) || blob.type !== metadata.mimeType || blob.size !== metadata.byteSize) return null;
     try { await validateItemImage(new File([blob], metadata.originalName, { type: metadata.mimeType })); } catch { return null; }
@@ -92,7 +94,7 @@ export class IndexedDbSaveRepository implements SaveRepository {
     const items = transaction.objectStore(STORE_NAMES.items);
     const raw = await request(items.get([MAIN_SAVE_SLOT_ID, itemId]));
     const item = parseItem(raw);
-    if (!item || asset.metadata.ownerId !== itemId || !parseAssetMetadata(asset.metadata) || asset.blob.type !== asset.metadata.mimeType || asset.blob.size !== asset.metadata.byteSize) { transaction.abort(); throw new Error("画像または対象アイテムを確認できません。"); }
+    if (!item || asset.metadata.ownerId !== itemId || !parseAssetMetadata(asset.metadata, "item_image") || asset.blob.type !== asset.metadata.mimeType || asset.blob.size !== asset.metadata.byteSize) { transaction.abort(); throw new Error("画像または対象アイテムを確認できません。"); }
     const previous = item.visual.imageAssetId;
     const updated = { ...item, visual: { ...item.visual, imageAssetId: asset.metadata.assetId }, updatedAt: asset.metadata.updatedAt };
     transaction.objectStore(STORE_NAMES.assets).put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...asset.metadata });
@@ -108,6 +110,25 @@ export class IndexedDbSaveRepository implements SaveRepository {
     const previous = item.visual.imageAssetId; const updated = { ...item, visual: { ...item.visual, imageAssetId: null }, updatedAt: new Date().toISOString() }; items.put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...updated });
     if (previous) { transaction.objectStore(STORE_NAMES.assets).delete([MAIN_SAVE_SLOT_ID, previous]); transaction.objectStore(STORE_NAMES.assetBlobs).delete([MAIN_SAVE_SLOT_ID, previous]); }
     await transactionDone(transaction); return updated;
+  }
+
+  async getCharacterPin(assetId: string, characterId: CharacterId): Promise<CharacterPinAsset | null> {
+    const db = await this.open(); const transaction = db.transaction([STORE_NAMES.assets, STORE_NAMES.assetBlobs], "readonly");
+    const [rawMetadata, rawBlob] = await Promise.all([request(transaction.objectStore(STORE_NAMES.assets).get([MAIN_SAVE_SLOT_ID, assetId])), request(transaction.objectStore(STORE_NAMES.assetBlobs).get([MAIN_SAVE_SLOT_ID, assetId]))]); await transactionDone(transaction);
+    const metadata = parseCharacterPinMetadata(rawMetadata, characterId); const blob = rawBlob && typeof rawBlob === "object" ? (rawBlob as { blob?: unknown }).blob : null;
+    if (!metadata || !(blob instanceof Blob) || blob.type !== metadata.mimeType || blob.size !== metadata.byteSize) return null;
+    try { await validateItemImage(new File([blob], metadata.originalName, { type: metadata.mimeType })); } catch { return null; } return { metadata, blob };
+  }
+
+  async putCharacterPin(characterId: CharacterId, asset: CharacterPinAsset): Promise<CharacterState> {
+    await validateItemImage(new File([asset.blob], asset.metadata.originalName, { type: asset.metadata.mimeType })); const db = await this.open(); const transaction = db.transaction([STORE_NAMES.characters, STORE_NAMES.assets, STORE_NAMES.assetBlobs], "readwrite"); const characters = transaction.objectStore(STORE_NAMES.characters); const raw = await request<Record<string, unknown> | undefined>(characters.get([MAIN_SAVE_SLOT_ID, characterId]));
+    if (!raw || !parseCharacterPinMetadata(asset.metadata, characterId) || asset.blob.type !== asset.metadata.mimeType || asset.blob.size !== asset.metadata.byteSize) { transaction.abort(); throw new Error("画像または対象人物を確認できません。"); }
+    const previous = typeof raw.imageAssetId === "string" ? raw.imageAssetId : null; const updated: Record<string, unknown> = { ...raw, imageAssetId: asset.metadata.assetId }; transaction.objectStore(STORE_NAMES.assets).put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...asset.metadata }); transaction.objectStore(STORE_NAMES.assetBlobs).put({ saveSlotId: MAIN_SAVE_SLOT_ID, assetId: asset.metadata.assetId, blob: asset.blob }); characters.put(updated); if (previous) { transaction.objectStore(STORE_NAMES.assets).delete([MAIN_SAVE_SLOT_ID, previous]); transaction.objectStore(STORE_NAMES.assetBlobs).delete([MAIN_SAVE_SLOT_ID, previous]); } await transactionDone(transaction); const { saveSlotId: _, ...character } = updated; return character as CharacterState;
+  }
+
+  async deleteCharacterPin(characterId: CharacterId): Promise<CharacterState> {
+    const db = await this.open(); const transaction = db.transaction([STORE_NAMES.characters, STORE_NAMES.assets, STORE_NAMES.assetBlobs], "readwrite"); const characters = transaction.objectStore(STORE_NAMES.characters); const raw = await request<Record<string, unknown> | undefined>(characters.get([MAIN_SAVE_SLOT_ID, characterId])); if (!raw) { transaction.abort(); throw new Error("対象人物を確認できません。"); }
+    const previous = typeof raw.imageAssetId === "string" ? raw.imageAssetId : null; const updated: Record<string, unknown> = { ...raw, imageAssetId: null }; characters.put(updated); if (previous) { transaction.objectStore(STORE_NAMES.assets).delete([MAIN_SAVE_SLOT_ID, previous]); transaction.objectStore(STORE_NAMES.assetBlobs).delete([MAIN_SAVE_SLOT_ID, previous]); } await transactionDone(transaction); const { saveSlotId: _, ...character } = updated; return character as CharacterState;
   }
 
   private open(): Promise<IDBDatabase> {

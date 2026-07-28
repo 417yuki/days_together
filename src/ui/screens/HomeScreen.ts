@@ -12,10 +12,11 @@ import { MapView } from "../components/MapView";
 import { RecentActivity } from "../components/RecentActivity";
 import type { UnknownSproutChoiceId, UnknownSproutState } from "../../domain/events/unknownSprout";
 import { PartnerScreen, type PartnerScreenActions } from "./PartnerScreen";
+import { SettingsScreen, type CharacterImageUi, type SettingsActions } from "./SettingsScreen";
 import { ItemsScreen, type ItemImageUi, type ItemScreenActions } from "./ItemsScreen";
 
-export type ScreenActions = PartnerScreenActions & ItemScreenActions & { map: (id: MapId) => void; navigation: (id: NavigationId) => void; developer: (open?: boolean) => void; move: (id: CharacterId, destination: LocationRef) => void; pausePartner: () => void; resumePartner: () => void; decidePartner: () => void; openEvent: () => void; closeEvent: () => void; advanceEvent: (choice: UnknownSproutChoiceId) => void; triggerEvent: () => void; resetEvent: () => void; reset: () => void; startConsultation: () => void; setConsultationResponse: (value: string) => void; checkConsultation: () => void; editConsultation: () => void; cancelConsultation: () => void; applyConsultation: () => void };
-export const HomeScreen = (state: AppState, actions: ScreenActions, itemImage?: ItemImageUi): HTMLElement => {
+export type ScreenActions = PartnerScreenActions & ItemScreenActions & SettingsActions & { map: (id: MapId) => void; navigation: (id: NavigationId) => void; developer: (open?: boolean) => void; move: (id: CharacterId, destination: LocationRef) => void; pausePartner: () => void; resumePartner: () => void; decidePartner: () => void; openEvent: () => void; closeEvent: () => void; advanceEvent: (choice: UnknownSproutChoiceId) => void; triggerEvent: () => void; resetEvent: () => void; reset: () => void; startConsultation: () => void; setConsultationResponse: (value: string) => void; checkConsultation: () => void; editConsultation: () => void; cancelConsultation: () => void; applyConsultation: () => void };
+export const HomeScreen = (state: AppState, actions: ScreenActions, itemImage?: ItemImageUi, characterImages?: Record<CharacterId, CharacterImageUi>): HTMLElement => {
   const shell = document.createElement("div"); shell.className = "app-shell"; const map = getMapById(state.viewedMapId); shell.append(Header(map, () => actions.developer(true)));
   const main = document.createElement("main");
   if (state.saveStatus === "failed") {
@@ -25,7 +26,7 @@ export const HomeScreen = (state: AppState, actions: ScreenActions, itemImage?: 
     main.append(state.consultationView === "closed" ? EventDetail(state, actions) : ConsultationScreen(state, actions));
   } else if (state.activeNavigation === "map") {
     main.append(
-      MapView({ map, characters: state.characters, feedback: state.message, unknownSprout: state.unknownSprout, onEvent: (trigger) => showEventSummary(state.unknownSprout, trigger, actions.openEvent), onMapChange: actions.map, onLocation: (location) => actions.move("user", { mapId: map.mapId, locationId: location.locationId }), onHouse: () => actions.map("starter_house_interior"), onResidents: (trigger) => showResidentsDialog(state, trigger) }),
+      MapView({ map, characters: state.characters, characterImages: Object.fromEntries(Object.entries(characterImages ?? {}).filter(([, value]) => value.url).map(([id, value]) => [id, value.url])) as Partial<Record<CharacterId, string>>, feedback: state.message, unknownSprout: state.unknownSprout, onEvent: (trigger) => showEventSummary(state.unknownSprout, trigger, actions.openEvent), onMapChange: actions.map, onLocation: (location) => actions.move("user", { mapId: map.mapId, locationId: location.locationId }), onHouse: () => actions.map("starter_house_interior"), onResidents: (trigger) => showResidentsDialog(state, trigger) }),
       CurrentStatus(state),
       RecentActivity(state.unknownSprout)
     );
@@ -33,6 +34,8 @@ export const HomeScreen = (state: AppState, actions: ScreenActions, itemImage?: 
     main.append(PartnerScreen(state, actions));
   } else if (state.activeNavigation === "items") {
     main.append(ItemsScreen(state, actions, itemImage));
+  } else if (state.activeNavigation === "settings" && characterImages) {
+    main.append(SettingsScreen(state, actions, characterImages));
   } else {
     const pending = document.createElement("section"); pending.className = "content-card pending-screen";
     pending.append(textElement("p", "ただいま準備中", "eyebrow"), textElement("h2", `${navigationLabels[state.activeNavigation]}画面は準備中です`), textElement("p", "これからの暮らしと一緒に、少しずつ増えていきます。")); main.append(pending);

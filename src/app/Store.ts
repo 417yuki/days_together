@@ -27,8 +27,8 @@ export const initialState: AppState = {
   partnerProfile: codyPresetProfile, partnerDialogues: codyPresetDialogues, partnerHistory: [{ profile: codyPresetProfile, dialogues: codyPresetDialogues }], pendingPartnerConsultation: null, partnerView: "profile", partnerResponse: "", partnerPreview: null, selectedPartnerRevision: null, partnerMessage: "",
   unknownSprout: initialUnknownSprout(), unknownSproutExtension: null, pendingConsultation: null, consultationView: "closed", consultationResponse: "", consultationPreview: null, consultationMessage: "", worldStartedOn: localDate(new Date()), openEventId: null,
   movements: {}, partnerActivity: { enabled: true, phase: "idle", actionId: null, destination: null, lineId: null, recentActionIds: [], lastDecision: null }, message: "場所を選んでみましょう", saveStatus: "available", characters: [
-    { characterId: "user", name: "主人公", marker: "U", mapId: "starter_house_interior", locationId: "table" },
-    { characterId: "cody", name: "コーディ", marker: "C", mapId: "starter_house_interior", locationId: "workbench" }
+    { characterId: "user", name: "主人公", marker: "U", mapId: "starter_house_interior", locationId: "table", imageAssetId: null },
+    { characterId: "cody", name: "コーディ", marker: "C", mapId: "starter_house_interior", locationId: "workbench", imageAssetId: null }
   ]
 };
 type Listener = (state: AppState) => void;
@@ -47,6 +47,7 @@ export class Store {
   cacheItemDraft(next: Partial<ItemDraft>): void { this.state = { ...this.state, itemDraft: { ...this.state.itemDraft, ...next } }; }
   addItem(item: GameItem): void { this.update({ items: [...this.state.items, structuredClone(item)], itemView: "detail", selectedItemId: item.itemId, itemMessage: "アイテムを登録しました。", itemDraft: createEmptyItemDraft() }); }
   replaceItem(item: GameItem, itemMessage: string): void { this.update({ items: this.state.items.map((value) => value.itemId === item.itemId ? structuredClone(item) : value), itemMessage }); }
+  replaceCharacter(character: CharacterState): void { this.update({ characters: this.state.characters.map((value) => value.characterId === character.characterId ? { ...character } : value) }); }
   toggleDeveloperPanel(force?: boolean): void { this.update({ developerPanelOpen: force ?? !this.state.developerPanelOpen }); }
   setSaveStatus(saveStatus: SaveStatus): void { if (this.state.saveStatus !== saveStatus) this.update({ saveStatus }); }
   setPartnerActivity(partnerActivity: PartnerActivityState, message?: string): void { this.update({ partnerActivity: { ...partnerActivity, destination: partnerActivity.destination && { ...partnerActivity.destination }, recentActionIds: partnerActivity.recentActionIds.slice(0, 5) }, ...(message ? { message } : {}) }); }

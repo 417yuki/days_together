@@ -8,4 +8,5 @@ export type CharacterState = {
   marker: string;
   mapId: MapId;
   locationId: string;
+  imageAssetId: string | null;
 };

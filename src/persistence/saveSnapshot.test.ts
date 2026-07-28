@@ -38,6 +38,14 @@ describe("save snapshots", () => {
     expect(state.characters[1]).toEqual(expect.objectContaining({ mapId: "starter_garden", locationId: "garden" }));
   });
 
+  it("restores a safe character image reference and repairs only an invalid reference", () => {
+    const user = { ...character("user", "starter_garden", "garden"), imageAssetId: "pin-user" };
+    const cody = { ...character("cody", "starter_garden", "shed"), imageAssetId: "bad\u0000ref" };
+    const state = restoreAppState(initialState, { worldState: {}, characters: [user, cody] });
+    expect(state.characters[0]).toEqual(expect.objectContaining({ locationId: "garden", imageAssetId: "pin-user" }));
+    expect(state.characters[1]).toEqual(expect.objectContaining({ locationId: "shed", imageAssetId: null }));
+  });
+
   it("restores only five known recent actions and starts idle", () => {
     const state = restoreAppState(initialState, { worldState: { recentPartnerActionIds: ["cook", "unknown", "garden", "rest", "craft", "join_user", "inspect_item"] }, characters: [] });
     expect(state.partnerActivity).toEqual(expect.objectContaining({ enabled: true, phase: "idle", actionId: null, recentActionIds: ["cook", "garden", "rest", "craft", "join_user"] }));

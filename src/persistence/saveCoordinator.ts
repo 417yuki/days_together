@@ -3,6 +3,8 @@ import type { SaveRepository } from "./persistenceTypes";
 import { createSaveSnapshot, restoreAppState } from "./saveSnapshot";
 import type { AppliedUnknownSproutExtension, ConsultationCheckpoint, PendingConsultation } from "../domain/consultation/unknownSproutConsultation";
 import type { PartnerProfileSnapshot, PendingPartnerConsultation } from "../domain/partner/partnerProfile";
+import type { CharacterPinAsset } from "../domain/assets/characterPins";
+import type { CharacterId } from "../domain/characters/characterTypes";
 import type { ItemImageAsset } from "../domain/assets/itemImages";
 
 export type LoadResult = { state: AppState; available: boolean };
@@ -44,5 +46,8 @@ export class SaveCoordinator {
   getItemImage(assetId: string): Promise<ItemImageAsset | null> { if (!this.repository.getItemImage) return Promise.resolve(null); return this.repository.getItemImage(assetId); }
   putItemImage(itemId: string, asset: ItemImageAsset) { return this.exclusive(async () => { if (!this.repository.putItemImage) throw new Error("画像を保存できません"); return this.repository.putItemImage(itemId, asset); }); }
   deleteItemImage(itemId: string) { return this.exclusive(async () => { if (!this.repository.deleteItemImage) throw new Error("画像を削除できません"); return this.repository.deleteItemImage(itemId); }); }
+  getCharacterPin(assetId: string, characterId: CharacterId) { return this.repository.getCharacterPin?.(assetId, characterId) ?? Promise.resolve(null); }
+  putCharacterPin(characterId: CharacterId, asset: CharacterPinAsset) { return this.exclusive(async () => { if (!this.repository.putCharacterPin) throw new Error("人物画像を保存できません"); return this.repository.putCharacterPin(characterId, asset); }); }
+  deleteCharacterPin(characterId: CharacterId) { return this.exclusive(async () => { if (!this.repository.deleteCharacterPin) throw new Error("人物画像を削除できません"); return this.repository.deleteCharacterPin(characterId); }); }
   private exclusive<T>(task: () => Promise<T>): Promise<T> { const result = this.queue.then(task); this.queue = result.then(() => undefined).catch((error) => { console.error("排他データの保存に失敗しました", error); }); return result; }
 }
