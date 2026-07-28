@@ -1,10 +1,11 @@
 import { isSafeAssetId } from "../assets/itemImages";
+import { resolveGenericVisualKey, type GenericVisualId } from "../../ui/visuals/genericItemVisuals";
 export const itemCategories = ["food", "drink", "plant", "book", "tool", "craft", "photo", "gift", "furniture", "clothing", "toy", "storage", "memory", "misc"] as const;
 export type ItemCategory = typeof itemCategories[number];
 export type ItemSource = "preset" | "user" | "event";
 export type ItemVisual = { iconKey: string; genericVisualKey: string | null; imageAssetId: string | null; mapDisplayMode: "icon" | "image" | "auto" };
 export type GameItem = { itemId: string; name: string; category: ItemCategory; description: string; tags: string[]; source: ItemSource; visual: ItemVisual; createdAt: string; updatedAt: string };
-export type ResolvedItemVisual = { kind: "image"; assetId: string } | { kind: "generic"; key: string } | { kind: "icon"; iconKey: string };
+export type ResolvedItemVisual = { kind: "individual"; assetId: string; url: string } | { kind: "generic"; genericVisualId: GenericVisualId } | { kind: "icon"; iconKey: string };
 
 export const categoryLabels: Record<ItemCategory, string> = { food: "食べ物", drink: "飲み物", plant: "植物", book: "本・紙もの", tool: "道具", craft: "工作材料", photo: "写真", gift: "贈り物", furniture: "家具・装飾", clothing: "衣類・布もの", toy: "玩具", storage: "収納", memory: "思い出品", misc: "その他" };
 const defaults: Record<ItemCategory, readonly [string, string]> = { food: ["restaurant", "food"], drink: ["local_cafe", "drink"], plant: ["potted_plant", "plant"], book: ["menu_book", "book"], tool: ["handyman", "tool"], craft: ["construction", "craft"], photo: ["photo", "photo"], gift: ["redeem", "gift"], furniture: ["chair", "furniture"], clothing: ["apparel", "clothing"], toy: ["toys", "toy"], storage: ["inventory_2", "storage"], memory: ["favorite", "memory"], misc: ["category", "misc"] };
@@ -23,4 +24,8 @@ export const parseItem = (value: unknown): GameItem | null => {
 };
 export const mergeStarterItems = (values: unknown[]): GameItem[] => { const valid = new Map<string, GameItem>(); values.forEach((value) => { const item = parseItem(value); if (item && !valid.has(item.itemId)) valid.set(item.itemId, item); }); starterItems.forEach((item) => { if (!valid.has(item.itemId)) valid.set(item.itemId, structuredClone(item)); }); return [...valid.values()]; };
 export const createUserItem = (input: { name: string; category: ItemCategory; description?: string }, id: () => string, now: () => string): GameItem => { const candidate = { itemId: id(), name: input.name.trim(), category: input.category, description: (input.description ?? "").trim(), tags: [], source: "user" as const, visual: getDefaultItemVisual(input.category), createdAt: now(), updatedAt: now() }; const parsed = parseItem(candidate); if (!parsed) throw new Error("名前は1〜40文字、説明は280文字以内で入力してください。制御文字は使えません。"); return parsed; };
-export const resolveItemVisual = (item: GameItem): ResolvedItemVisual => ({ kind: "icon", iconKey: item.visual.iconKey });
+export const resolveItemVisual = (item: GameItem, individual: { assetId: string; url: string } | null = null): ResolvedItemVisual => {
+  if (individual && item.visual.imageAssetId === individual.assetId) return { kind: "individual", ...individual };
+  const genericVisualId = resolveGenericVisualKey(item.visual.genericVisualKey);
+  return genericVisualId ? { kind: "generic", genericVisualId } : { kind: "icon", iconKey: item.visual.iconKey };
+};
