@@ -4,6 +4,7 @@ import { selectCharactersOnMap, selectProxyCharacters } from "../../domain/maps/
 import type { LocationDefinition, MapDefinition, MapId } from "../../domain/maps/mapTypes";
 import { unknownSproutDefinition, type UnknownSproutState } from "../../domain/events/unknownSprout";
 import { characterPinStyle, normalizeCharacterPinVisual } from "../../domain/characters/characterPinVisual";
+import type { MapGatewayVisual } from "../../domain/maps/mapGatewayVisual";
 
 type MapViewOptions = {
   map: MapDefinition;
@@ -17,9 +18,10 @@ type MapViewOptions = {
   onEvent: (trigger: HTMLElement) => void;
   characterImages?: Partial<Record<"user" | "cody", string>>;
   backgroundUrl?: string;
+  gatewayVisual: MapGatewayVisual;
 };
 
-export const MapView = ({ map, characters, characterImages = {}, backgroundUrl, feedback: feedbackText, onMapChange, onLocation, onHouse, onResidents, unknownSprout, onEvent }: MapViewOptions): HTMLElement => {
+export const MapView = ({ map, characters, characterImages = {}, backgroundUrl, gatewayVisual, feedback: feedbackText, onMapChange, onLocation, onHouse, onResidents, unknownSprout, onEvent }: MapViewOptions): HTMLElement => {
   const section = document.createElement("section"); section.className = "map-section"; section.setAttribute("aria-labelledby", "map-heading");
   const heading = document.createElement("h2"); heading.id = "map-heading"; heading.className = "visually-hidden"; heading.textContent = `${map.name}のマップ`;
   const tabs = document.createElement("div"); tabs.className = "map-tabs"; tabs.setAttribute("role", "group"); tabs.setAttribute("aria-label", "表示するマップ");
@@ -31,7 +33,7 @@ export const MapView = ({ map, characters, characterImages = {}, backgroundUrl, 
     const roof = document.createElement("span"); roof.className = "house-roof"; roof.setAttribute("aria-hidden", "true");
     const name = document.createElement("strong"); name.textContent = "小さな家";
     const description = document.createElement("span"); description.textContent = "家の外観";
-    house.append(roof, name, description); house.dataset.focusKey = `house-${map.mapId}`; house.setAttribute("aria-label", "家の外観。家の中を見る"); house.addEventListener("click", onHouse); canvas.append(house);
+    house.append(roof, name, description); house.style.left = `${gatewayVisual.entryAffordancePosition!.x * 100}%`; house.style.top = `${gatewayVisual.entryAffordancePosition!.y * 100}%`; house.dataset.focusKey = `house-${map.mapId}`; house.setAttribute("aria-label", "家の外観。家の中を見る"); house.addEventListener("click", onHouse); canvas.append(house);
   }
   map.locations.forEach((location) => { const button = document.createElement("button"); button.type = "button"; button.className = "map-location"; button.dataset.focusKey = `location-${map.mapId}-${location.locationId}`; button.textContent = location.label; positionAt(button, location); button.addEventListener("click", () => onLocation(location)); canvas.append(button); });
   if (map.mapId === unknownSproutDefinition.mapId && unknownSprout.status !== "locked") {
@@ -44,7 +46,7 @@ export const MapView = ({ map, characters, characterImages = {}, backgroundUrl, 
   selectCharactersOnMap(characters, map).forEach(({ character: state, location }) => canvas.append(character(state, location, characterImages[state.characterId])));
   const proxies = selectProxyCharacters(characters, map);
   if (proxies.length > 0) {
-    const residents = document.createElement("button"); residents.type = "button"; residents.className = "residents-pin"; positionAt(residents, proxies[0].location);
+    const residents = document.createElement("button"); residents.type = "button"; residents.className = "residents-pin"; residents.style.left = `${gatewayVisual.proxyPosition.x * 100}%`; residents.style.top = `${gatewayVisual.proxyPosition.y * 100}%`;
     const markers = document.createElement("strong"); proxies.forEach(({ character }) => { const url = characterImages[character.characterId]; if (url) { const image = document.createElement("img"); image.src = url; image.alt = ""; const safe = normalizeCharacterPinVisual(character.pinVisual); image.style.objectPosition = `${safe.objectPositionX}% ${safe.objectPositionY}%`; markers.append(image); } else markers.append(document.createTextNode(character.marker)); });
     const description = document.createElement("span"); description.textContent = `${proxies.map(({ character }) => character.name).join("と")}は別のマップにいます`;
     residents.append(markers, description); residents.dataset.focusKey = `residents-${map.mapId}`; residents.setAttribute("aria-label", `${description.textContent}。居場所を確認`); residents.addEventListener("click", () => onResidents(residents)); canvas.append(residents);

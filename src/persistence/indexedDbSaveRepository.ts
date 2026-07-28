@@ -174,6 +174,14 @@ export class IndexedDbSaveRepository implements SaveRepository {
     const next = parseMapVisual({ ...current, locationLayout: layout, updatedAt: new Date().toISOString() }, mapId); store.put(next); await transactionDone(tx); return next;
   }
 
+  async putGatewayVisualPair(pair: Record<MapBackgroundId, MapVisualState["gatewayVisual"]>): Promise<Record<MapBackgroundId, MapVisualState>> {
+    const db = await this.open(); const tx = db.transaction(STORE_NAMES.mapVisuals, "readwrite"); const store = tx.objectStore(STORE_NAMES.mapVisuals); const now = new Date().toISOString();
+    const ids: MapBackgroundId[] = ["starter_house_interior", "starter_garden"];
+    const current = await Promise.all(ids.map(async (id) => parseMapVisual(await request(store.get([MAIN_SAVE_SLOT_ID, id])), id)));
+    const next = Object.fromEntries(current.map((visual) => [visual.mapId, { ...visual, gatewayVisual: pair[visual.mapId], updatedAt: now }])) as Record<MapBackgroundId, MapVisualState>;
+    ids.forEach((id) => store.put(next[id])); await transactionDone(tx); return next;
+  }
+
   private open(): Promise<IDBDatabase> {
     if (this.database) return this.database;
     this.database = new Promise((resolve, reject) => {

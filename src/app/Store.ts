@@ -11,6 +11,8 @@ import { codyPresetDialogues, codyPresetProfile, type PartnerDialogueLine, type 
 import { starterItems, type GameItem, type ItemCategory } from "../domain/items/items";
 import { createDefaultMapVisual, type MapBackgroundId, type MapVisualState } from "../domain/assets/mapBackgrounds";
 import { DEFAULT_CHARACTER_PIN_VISUAL } from "../domain/characters/characterPinVisual";
+import { applyGatewayPair, restoreGatewayVisualPair } from "../domain/maps/mapGatewayVisual";
+import { resolveMapLayout, type LocationLayout } from "../domain/maps/locationLayout";
 
 export type NavigationId = "map" | "items" | "memories" | "partner" | "settings";
 export type SaveStatus = "available" | "failed";
@@ -51,6 +53,7 @@ export class Store {
   addItem(item: GameItem): void { this.update({ items: [...this.state.items, structuredClone(item)], itemView: "detail", selectedItemId: item.itemId, itemMessage: "アイテムを登録しました。", itemDraft: createEmptyItemDraft() }); }
   replaceItem(item: GameItem, itemMessage: string): void { this.update({ items: this.state.items.map((value) => value.itemId === item.itemId ? structuredClone(item) : value), itemMessage }); }
   replaceMapVisual(visual: MapVisualState): void { this.update({ mapVisuals: { ...this.state.mapVisuals, [visual.mapId]: { ...visual } } }); }
+  replaceMapVisualPair(mapVisuals: AppState["mapVisuals"]): void { this.update({ mapVisuals }); }
   replaceCharacter(character: CharacterState): void { this.update({ characters: this.state.characters.map((value) => value.characterId === character.characterId ? { ...character } : value) }); }
   toggleDeveloperPanel(force?: boolean): void { this.update({ developerPanelOpen: force ?? !this.state.developerPanelOpen }); }
   setSaveStatus(saveStatus: SaveStatus): void { if (this.state.saveStatus !== saveStatus) this.update({ saveStatus }); }
@@ -68,7 +71,7 @@ export class Store {
     if (this.state.movements[characterId]) { this.update({ message: "移動中です" }); return "busy"; }
     const character = this.state.characters.find((candidate) => candidate.characterId === characterId); if (!character) return "invalid";
     if (character.mapId === destination.mapId && character.locationId === destination.locationId) return "same";
-    const graph = buildLocationGraph(starterMaps, (message) => console.warn(message)); const movement = startMovement(character, destination, graph);
+    const layouts = Object.fromEntries(Object.entries(this.state.mapVisuals).map(([id, visual]) => [id, visual.locationLayout])) as Record<MapId, LocationLayout>; const pair = restoreGatewayVisualPair(Object.fromEntries(Object.entries(this.state.mapVisuals).map(([id, visual]) => [id, visual.gatewayVisual])), layouts); const maps = applyGatewayPair(starterMaps.map((map) => resolveMapLayout(map, layouts[map.mapId])), pair); const graph = buildLocationGraph(maps, (message) => console.warn(message)); const movement = startMovement(character, destination, graph);
     if (!movement) { this.update({ message: "その場所への経路が見つかりません" }); return "invalid"; }
     const current = locationLabel(character); const destinationLabel = locationLabel(destination);
     this.update({ movements: { ...this.state.movements, [characterId]: movement }, message: `${character.name}は${current}にいて、${destinationLabel}へ移動中です。` }); return "started";
