@@ -1,6 +1,7 @@
 import { starterMaps } from "../../data/starterMaps";
 import { buildLocationGraph, findShortestPath } from "../movement/movement";
 import type { LocationRef } from "../maps/mapTypes";
+import type { PartnerDialogueLine, PartnerGameProfile } from "./partnerProfile";
 
 export type ActionId = "rest" | "cook" | "garden" | "craft" | "join_user" | "inspect_item";
 export type ActionDefinition = { actionId: ActionId; label: string; ongoingText: string; startedText: string; baseScore: number; durationMs: number; lineIds: string[] };
@@ -47,14 +48,14 @@ export const createActionCandidates = (cody: LocationRef, user: LocationRef): Ac
 };
 const traits: Record<ActionId, Array<keyof typeof codyPersonality>> = { rest: ["patience", "solitudePreference"], cook: ["caretaking", "tidiness"], garden: ["curiosity", "patience"], craft: ["initiative", "curiosity", "tidiness"], join_user: ["sociability", "affection", "userPriority"], inspect_item: ["curiosity", "caution"] };
 const penalties = [-32, -18, -10, -5, -2];
-export const scoreCandidates = (candidates: ActionCandidate[], recent: ActionId[], random: RandomSource): ActionScoreBreakdown[] => {
+export const scoreCandidates = (candidates: ActionCandidate[], recent: ActionId[], random: RandomSource, profile: PartnerGameProfile = { traits: codyPersonality, preferredActionIds, dislikedActionIds } as PartnerGameProfile): ActionScoreBreakdown[] => {
   const blocked = recent[0] === recent[1] && candidates.some(({ actionId }) => actionId !== recent[0]) ? recent[0] : undefined;
   return candidates.filter(({ actionId }) => actionId !== blocked).map((candidate) => {
-    const definition = ACTION_DEFINITIONS[candidate.actionId]; const values = traits[candidate.actionId].map((key) => codyPersonality[key]);
+    const definition = ACTION_DEFINITIONS[candidate.actionId]; const values = traits[candidate.actionId].map((key) => profile.traits[key]);
     let personality = Math.max(-10, Math.min(10, (values.reduce((sum, value) => sum + value, 0) / values.length - 50) / 5));
     if (candidate.actionId === "join_user") personality *= .75;
     personality = Math.round(personality * 10) / 10;
-    const preference = preferredActionIds.includes(candidate.actionId) ? 20 : dislikedActionIds.includes(candidate.actionId) ? -20 : 0;
+    const preference = profile.preferredActionIds.includes(candidate.actionId) ? 20 : profile.dislikedActionIds.includes(candidate.actionId) ? -20 : 0;
     const repetition = recent.slice(0, 5).reduce((sum, id, index) => sum + (id === candidate.actionId ? penalties[index] : 0), 0);
     const randomJitter = Math.round((random() * 4 - 2) * 10) / 10;
     const total = Math.round((definition.baseScore + personality + preference + repetition + randomJitter) * 10) / 10;
@@ -69,3 +70,4 @@ export const chooseWeightedAction = (scores: ActionScoreBreakdown[], random: Ran
 export const chooseLine = (actionId: ActionId, previousLineId: string | null, random: RandomSource): string => {
   const options = ACTION_DEFINITIONS[actionId].lineIds.filter((id) => id !== previousLineId); return options[Math.floor(random() * options.length)] ?? ACTION_DEFINITIONS[actionId].lineIds[0];
 };
+export const chooseDialogue = (actionId: ActionId, dialogues: PartnerDialogueLine[], fallback: PartnerDialogueLine[], previousLineId: string | null, random: RandomSource): PartnerDialogueLine => { const custom = dialogues.filter((line) => line.actionId === actionId && line.enabled); const pool = custom.length ? custom : fallback.filter((line) => line.actionId === actionId && line.enabled); const options = pool.filter((line) => line.dialogueId !== previousLineId); return options[Math.floor(random() * options.length)] ?? pool[0]; };

@@ -7,16 +7,19 @@ import { starterMaps } from "../data/starterMaps";
 import type { ActionDecisionDebug, ActionId } from "../domain/partner/partnerActions";
 import { advanceUnknownSprout, initialUnknownSprout, localDate, makeUnknownSproutAvailable, releaseUnknownSprout, type EventId, type UnknownSproutChoiceId, type UnknownSproutState } from "../domain/events/unknownSprout";
 import type { AppliedUnknownSproutExtension, PendingConsultation, UnknownSproutConsultationResult } from "../domain/consultation/unknownSproutConsultation";
+import { codyPresetDialogues, codyPresetProfile, type PartnerDialogueLine, type PartnerGameProfile, type PartnerProfileSnapshot, type PartnerResult, type PendingPartnerConsultation } from "../domain/partner/partnerProfile";
 
 export type NavigationId = "map" | "items" | "memories" | "partner" | "settings";
 export type SaveStatus = "available" | "failed";
 export type PartnerActivityState = { enabled: boolean; phase: "idle" | "moving" | "acting"; actionId: ActionId | null; destination: LocationRef | null; lineId: string | null; recentActionIds: ActionId[]; lastDecision: ActionDecisionDebug | null };
 export type ConsultationView = "closed" | "compose" | "confirm";
-export type AppState = { viewedMapId: MapId; activeNavigation: NavigationId; developerPanelOpen: boolean; characters: CharacterState[]; movements: Partial<Record<CharacterId, MovementState>>; partnerActivity: PartnerActivityState; unknownSprout: UnknownSproutState; unknownSproutExtension: AppliedUnknownSproutExtension | null; pendingConsultation: PendingConsultation | null; consultationView: ConsultationView; consultationResponse: string; consultationPreview: UnknownSproutConsultationResult | null; consultationMessage: string; worldStartedOn: string; openEventId: EventId | null; message: string; saveStatus: SaveStatus };
+export type PartnerView = "profile" | "consult" | "confirm" | "history" | "history_detail" | "restore_confirm";
+export type AppState = { viewedMapId: MapId; activeNavigation: NavigationId; developerPanelOpen: boolean; characters: CharacterState[]; movements: Partial<Record<CharacterId, MovementState>>; partnerActivity: PartnerActivityState; partnerProfile: PartnerGameProfile; partnerDialogues: PartnerDialogueLine[]; partnerHistory: PartnerProfileSnapshot[]; pendingPartnerConsultation: PendingPartnerConsultation | null; partnerView: PartnerView; partnerResponse: string; partnerPreview: PartnerResult | null; selectedPartnerRevision: number | null; partnerMessage: string; unknownSprout: UnknownSproutState; unknownSproutExtension: AppliedUnknownSproutExtension | null; pendingConsultation: PendingConsultation | null; consultationView: ConsultationView; consultationResponse: string; consultationPreview: UnknownSproutConsultationResult | null; consultationMessage: string; worldStartedOn: string; openEventId: EventId | null; message: string; saveStatus: SaveStatus };
 export const initialState: AppState = {
   viewedMapId: "starter_house_interior",
   activeNavigation: "map",
   developerPanelOpen: false,
+  partnerProfile: codyPresetProfile, partnerDialogues: codyPresetDialogues, partnerHistory: [{ profile: codyPresetProfile, dialogues: codyPresetDialogues }], pendingPartnerConsultation: null, partnerView: "profile", partnerResponse: "", partnerPreview: null, selectedPartnerRevision: null, partnerMessage: "",
   unknownSprout: initialUnknownSprout(), unknownSproutExtension: null, pendingConsultation: null, consultationView: "closed", consultationResponse: "", consultationPreview: null, consultationMessage: "", worldStartedOn: localDate(new Date()), openEventId: null,
   movements: {}, partnerActivity: { enabled: true, phase: "idle", actionId: null, destination: null, lineId: null, recentActionIds: [], lastDecision: null }, message: "場所を選んでみましょう", saveStatus: "available", characters: [
     { characterId: "user", name: "主人公", marker: "U", mapId: "starter_house_interior", locationId: "table" },
@@ -44,6 +47,7 @@ export class Store {
   triggerEvent(): void { if (this.state.unknownSprout.status === "locked") this.update({ unknownSprout: makeUnknownSproutAvailable(), message: "庭に知らない芽が現れました。" }); }
   resetEvent(now = new Date()): void { this.update({ unknownSprout: initialUnknownSprout(), unknownSproutExtension: null, pendingConsultation: null, consultationView: "closed", consultationResponse: "", consultationPreview: null, consultationMessage: "", worldStartedOn: localDate(now), openEventId: null, message: "知らない芽を初期状態へ戻しました。" }); }
   setConsultation(next: Partial<Pick<AppState, "pendingConsultation" | "consultationView" | "consultationResponse" | "consultationPreview" | "consultationMessage" | "unknownSproutExtension">>): void { this.update(next); }
+  setPartner(next: Partial<Pick<AppState, "partnerProfile" | "partnerDialogues" | "partnerHistory" | "pendingPartnerConsultation" | "partnerView" | "partnerResponse" | "partnerPreview" | "selectedPartnerRevision" | "partnerMessage" | "characters">>): void { this.update(next); }
   stopCharacterMovement(characterId: CharacterId): void { const movements = { ...this.state.movements }; delete movements[characterId]; this.update({ movements }); }
   beginMovement(characterId: CharacterId, destination: LocationRef): "started" | "busy" | "invalid" | "same" {
     if (this.state.movements[characterId]) { this.update({ message: "移動中です" }); return "busy"; }

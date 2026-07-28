@@ -1,5 +1,6 @@
 import type { Store } from "./Store";
-import { ACTION_DEFINITIONS, chooseLine, chooseWeightedAction, createActionCandidates, scoreCandidates, type RandomSource } from "../domain/partner/partnerActions";
+import { ACTION_DEFINITIONS, chooseDialogue, chooseWeightedAction, createActionCandidates, scoreCandidates, type RandomSource } from "../domain/partner/partnerActions";
+import { codyPresetDialogues } from "../domain/partner/partnerProfile";
 import type { LocationRef } from "../domain/maps/mapTypes";
 import { starterMaps } from "../data/starterMaps";
 
@@ -20,7 +21,7 @@ export class PartnerActivityController {
   private decide(): void {
     const state = this.store.getState(); if (!state.partnerActivity.enabled || state.partnerActivity.phase !== "idle" || document.hidden) return;
     const cody = state.characters.find(({ characterId }) => characterId === "cody"); const user = state.characters.find(({ characterId }) => characterId === "user"); if (!cody || !user) return;
-    const scores = scoreCandidates(createActionCandidates(cody, user), state.partnerActivity.recentActionIds, this.random); const decision = chooseWeightedAction(scores, this.random, ++this.sequence);
+    const scores = scoreCandidates(createActionCandidates(cody, user), state.partnerActivity.recentActionIds, this.random, state.partnerProfile); const decision = chooseWeightedAction(scores, this.random, ++this.sequence);
     if (!decision) { this.store.setPartnerActivity({ ...state.partnerActivity, lastDecision: null }, "自律行動の行き先が見つかりませんでした。"); this.schedule(); return; }
     const next = { ...state.partnerActivity, phase: "moving" as const, actionId: decision.selectedActionId, destination: decision.selectedDestination, lineId: null, lastDecision: decision };
     this.store.setPartnerActivity(next, `コーディが${this.locationLabel(decision.selectedDestination)}へ移動を始めました。`);
@@ -29,7 +30,7 @@ export class PartnerActivityController {
   }
   private beginActing(): void {
     const state = this.store.getState(); const activity = state.partnerActivity; if (!activity.enabled || !activity.actionId || !activity.destination) return;
-    const lineId = chooseLine(activity.actionId, this.previousLineId, this.random); this.previousLineId = lineId;
+    const lineId = chooseDialogue(activity.actionId, state.partnerDialogues, codyPresetDialogues, this.previousLineId, this.random).dialogueId; this.previousLineId = lineId;
     this.store.setPartnerActivity({ ...activity, phase: "acting", lineId }, `コーディが${this.locationLabel(activity.destination)}で${ACTION_DEFINITIONS[activity.actionId].startedText}。`);
     this.actionTimer = this.timers.setTimeout(() => { this.actionTimer = undefined; this.complete(); }, ACTION_DEFINITIONS[activity.actionId].durationMs);
   }

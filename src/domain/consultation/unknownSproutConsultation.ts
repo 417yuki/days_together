@@ -1,6 +1,6 @@
 import type { UnknownSproutPath, UnknownSproutState } from "../events/unknownSprout";
 
-export const MAX_RESPONSE_LENGTH = 20_000;
+export const MAX_RESPONSE_LENGTH = 30_000;
 export type PendingConsultation = { requestId: string; requestType: "unknown_sprout_reflection"; eventId: "unknown_sprout"; expectedStage: "flower"; expectedPath: UnknownSproutPath; prompt: string; createdAt: string; status: "pending" };
 export type UnknownSproutConsultationResult = { schemaVersion: 1; requestId: string; requestType: "unknown_sprout_reflection"; eventId: "unknown_sprout"; expectedStage: "flower"; expectedPath: UnknownSproutPath; flowerName: string | null; partnerLine: string; note: string };
 export type AppliedUnknownSproutExtension = Pick<UnknownSproutConsultationResult, "requestId" | "flowerName" | "partnerLine" | "note"> & { appliedAt: string };
@@ -23,7 +23,7 @@ const balancedObjects = (text: string): string[] => {
 };
 const parseObjects = (texts: string[]): Record<string, unknown>[] => texts.flatMap(balancedObjects).flatMap((candidate) => { try { const value: unknown = JSON.parse(candidate); return value && typeof value === "object" && !Array.isArray(value) ? [value as Record<string, unknown>] : []; } catch { return []; } });
 export const extractJsonObject = (input: string): Record<string, unknown> => {
-  if (input.length > MAX_RESPONSE_LENGTH) throw new Error("返答は20,000文字以内にしてください。");
+  if (input.length > MAX_RESPONSE_LENGTH) throw new Error("返答は30,000文字以内にしてください。");
   const jsonBlocks = [...input.matchAll(/```json\s*([\s\S]*?)```/gi)].map((match) => match[1]);
   const normalBlocks = [...input.matchAll(/```(?!json\b)[^\n]*\n?([\s\S]*?)```/gi)].map((match) => match[1]);
   const candidates = parseObjects(jsonBlocks.length ? jsonBlocks : normalBlocks.length ? normalBlocks : [input]);
