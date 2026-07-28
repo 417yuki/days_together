@@ -33,6 +33,7 @@ export class App {
     this.store.checkEvents();
     document.addEventListener("visibilitychange", this.onVisibility);
     window.addEventListener("pagehide", this.onPageHide, { once: true });
+    window.addEventListener("pageshow", this.onPageShow);
   }
   private render(): void {
     const actions = {
@@ -81,7 +82,23 @@ export class App {
     const step = (): void => { if (this.store.advanceCharacter(characterId)) this.movementTimers.set(characterId, window.setTimeout(step, MOVEMENT_STEP_MS)); else { this.movementTimers.delete(characterId); done?.(true); } };
     this.movementTimers.set(characterId, window.setTimeout(step, MOVEMENT_STEP_MS));
   }
-  private onPageHide = (): void => { (["user", "cody"] as CharacterId[]).forEach((id) => this.revokeCharacterUrl(id)); this.revokeItemUrl(); };
+  private onPageHide = (): void => {
+    (["user", "cody"] as CharacterId[]).forEach((id) => {
+      this.characterRequests[id].invalidate();
+      this.revokeCharacterUrl(id);
+      this.characterImages[id] = { phase: "marker", url: null };
+    });
+    this.revokeItemUrl();
+  };
+  private onPageShow = (event: PageTransitionEvent): void => {
+    // Safari may restore the document from its back/forward cache after pagehide.
+    // Object URLs were revoked on pagehide, so resolve the two stable asset IDs again.
+    if (!event.persisted) return;
+    this.store.getState().characters.forEach((character) => {
+      if (character.imageAssetId) void this.loadCharacterImage(character.characterId, character.imageAssetId);
+    });
+    this.render();
+  };
   private onVisibility = (): void => { if (document.visibilityState === "visible") this.store.checkEvents(); };
   private stopTimers(): void { this.movementTimers.forEach((timer) => clearTimeout(timer)); this.movementTimers.clear(); }
 }
