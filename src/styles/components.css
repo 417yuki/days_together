@@ -23,3 +23,12 @@
 .partner-traits dt { min-width: 0; overflow-wrap: anywhere; }.partner-traits dd { margin: 0; font-weight: 700; }
 .dialogue-group { min-width: 0; padding-block: 8px; border-bottom: 1px solid var(--color-border); }.dialogue-group h4 { margin: 0; }.dialogue-group ul { margin-bottom: 0; padding-left: 1.3rem; }.dialogue-group li, .partner-diff p { overflow-wrap: anywhere; white-space: pre-wrap; }
 .history-list { display: grid; gap: 8px; }.history-item { width: 100%; padding: 10px; text-align: left; overflow-wrap: anywhere; }
+.items-screen { display: grid; gap: 12px; min-width: 0; }
+.items-screen button { min-height: 44px; }
+.item-create-button { width: 100%; }
+.item-list { display: grid; gap: 8px; }
+.item-row { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; width: 100%; min-height: 60px; padding: 8px 12px; text-align: left; }
+.item-row > span { display: grid; min-width: 0; gap: 2px; }.item-row strong, .item-row small { overflow-wrap: anywhere; }.item-row small { color: var(--color-muted); }
+.item-icon { width: 32px; height: 32px; color: var(--color-accent-dark); }.item-hero { display: grid; place-items: center; min-height: 150px; border-radius: var(--radius-medium); background: var(--color-background); }.item-hero .item-icon { width: 92px; height: 92px; }
+.item-description { white-space: pre-wrap; overflow-wrap: anywhere; }.item-live { min-height: 1.5em; color: var(--color-accent-dark); }
+.item-form { display: grid; gap: 10px; }.item-form label { font-weight: 700; }.item-form input, .item-form select, .item-form textarea { box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px; font: 16px/1.5 inherit; }.item-form textarea { min-height: 110px; resize: vertical; }

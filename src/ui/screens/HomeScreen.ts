@@ -12,8 +12,9 @@ import { MapView } from "../components/MapView";
 import { RecentActivity } from "../components/RecentActivity";
 import type { UnknownSproutChoiceId, UnknownSproutState } from "../../domain/events/unknownSprout";
 import { PartnerScreen, type PartnerScreenActions } from "./PartnerScreen";
+import { ItemsScreen, type ItemScreenActions } from "./ItemsScreen";
 
-export type ScreenActions = PartnerScreenActions & { map: (id: MapId) => void; navigation: (id: NavigationId) => void; developer: (open?: boolean) => void; move: (id: CharacterId, destination: LocationRef) => void; pausePartner: () => void; resumePartner: () => void; decidePartner: () => void; openEvent: () => void; closeEvent: () => void; advanceEvent: (choice: UnknownSproutChoiceId) => void; triggerEvent: () => void; resetEvent: () => void; reset: () => void; startConsultation: () => void; setConsultationResponse: (value: string) => void; checkConsultation: () => void; editConsultation: () => void; cancelConsultation: () => void; applyConsultation: () => void };
+export type ScreenActions = PartnerScreenActions & ItemScreenActions & { map: (id: MapId) => void; navigation: (id: NavigationId) => void; developer: (open?: boolean) => void; move: (id: CharacterId, destination: LocationRef) => void; pausePartner: () => void; resumePartner: () => void; decidePartner: () => void; openEvent: () => void; closeEvent: () => void; advanceEvent: (choice: UnknownSproutChoiceId) => void; triggerEvent: () => void; resetEvent: () => void; reset: () => void; startConsultation: () => void; setConsultationResponse: (value: string) => void; checkConsultation: () => void; editConsultation: () => void; cancelConsultation: () => void; applyConsultation: () => void };
 export const HomeScreen = (state: AppState, actions: ScreenActions): HTMLElement => {
   const shell = document.createElement("div"); shell.className = "app-shell"; const map = getMapById(state.viewedMapId); shell.append(Header(map, () => actions.developer(true)));
   const main = document.createElement("main");
@@ -30,6 +31,8 @@ export const HomeScreen = (state: AppState, actions: ScreenActions): HTMLElement
     );
   } else if (state.activeNavigation === "partner") {
     main.append(PartnerScreen(state, actions));
+  } else if (state.activeNavigation === "items") {
+    main.append(ItemsScreen(state, actions));
   } else {
     const pending = document.createElement("section"); pending.className = "content-card pending-screen";
     pending.append(textElement("p", "ただいま準備中", "eyebrow"), textElement("h2", `${navigationLabels[state.activeNavigation]}画面は準備中です`), textElement("p", "これからの暮らしと一緒に、少しずつ増えていきます。")); main.append(pending);

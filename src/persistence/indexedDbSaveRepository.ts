@@ -6,29 +6,30 @@ export class IndexedDbSaveRepository implements SaveRepository {
 
   async loadMainSave(): Promise<StoredSaveData | null> {
     const db = await this.open();
-    const transaction = db.transaction([STORE_NAMES.saveSlots, STORE_NAMES.worldStates, STORE_NAMES.characters, STORE_NAMES.events, STORE_NAMES.consultations, STORE_NAMES.partnerProfiles, STORE_NAMES.partnerProfileHistory, STORE_NAMES.dialogues], "readonly");
+    const transaction = db.transaction([STORE_NAMES.saveSlots, STORE_NAMES.worldStates, STORE_NAMES.characters, STORE_NAMES.events, STORE_NAMES.consultations, STORE_NAMES.partnerProfiles, STORE_NAMES.partnerProfileHistory, STORE_NAMES.dialogues, STORE_NAMES.items], "readonly");
     const slot = await request(transaction.objectStore(STORE_NAMES.saveSlots).get(MAIN_SAVE_SLOT_ID));
     if (!slot) { await transactionDone(transaction); return null; }
-    const [worldState, characters, events, consultations, partnerProfiles, partnerProfileHistory, dialogues] = await Promise.all([
+    const [worldState, characters, events, consultations, partnerProfiles, partnerProfileHistory, dialogues, items] = await Promise.all([
       request(transaction.objectStore(STORE_NAMES.worldStates).get(MAIN_SAVE_SLOT_ID)),
       request(transaction.objectStore(STORE_NAMES.characters).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"]))),
       request(transaction.objectStore(STORE_NAMES.events).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"]))),
       request(transaction.objectStore(STORE_NAMES.consultations).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"]))),
       request(transaction.objectStore(STORE_NAMES.partnerProfiles).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"]))),
       request(transaction.objectStore(STORE_NAMES.partnerProfileHistory).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, "", 0], [MAIN_SAVE_SLOT_ID, "\uffff", Number.MAX_SAFE_INTEGER]))),
-      request(transaction.objectStore(STORE_NAMES.dialogues).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, "", ""], [MAIN_SAVE_SLOT_ID, "\uffff", "\uffff"])))
+      request(transaction.objectStore(STORE_NAMES.dialogues).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, "", ""], [MAIN_SAVE_SLOT_ID, "\uffff", "\uffff"]))),
+      request(transaction.objectStore(STORE_NAMES.items).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"])))
     ]);
     await transactionDone(transaction);
-    return { worldState, characters: Array.isArray(characters) ? characters : [], events: Array.isArray(events) ? events : [], consultations: Array.isArray(consultations) ? consultations : [], partnerProfiles, partnerProfileHistory, dialogues };
+    return { worldState, characters: Array.isArray(characters) ? characters : [], events: Array.isArray(events) ? events : [], consultations: Array.isArray(consultations) ? consultations : [], partnerProfiles, partnerProfileHistory, dialogues, items };
   }
 
   async saveMain(snapshot: SaveSnapshot): Promise<void> {
     const db = await this.open();
-    const transaction = db.transaction([STORE_NAMES.appMeta, STORE_NAMES.saveSlots, STORE_NAMES.worldStates, STORE_NAMES.characters, STORE_NAMES.events, STORE_NAMES.partnerProfiles, STORE_NAMES.partnerProfileHistory, STORE_NAMES.dialogues], "readwrite");
+    const transaction = db.transaction([STORE_NAMES.appMeta, STORE_NAMES.saveSlots, STORE_NAMES.worldStates, STORE_NAMES.characters, STORE_NAMES.events, STORE_NAMES.partnerProfiles, STORE_NAMES.partnerProfileHistory, STORE_NAMES.dialogues, STORE_NAMES.items], "readwrite");
     const now = new Date().toISOString();
     const slots = transaction.objectStore(STORE_NAMES.saveSlots);
     const existing = await request<Record<string, unknown> | undefined>(slots.get(MAIN_SAVE_SLOT_ID));
-    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 4, updatedAt: now });
+    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 5, updatedAt: now });
     slots.put({ saveSlotId: MAIN_SAVE_SLOT_ID, createdAt: typeof existing?.createdAt === "string" ? existing.createdAt : now, updatedAt: now });
     transaction.objectStore(STORE_NAMES.worldStates).put({ saveSlotId: MAIN_SAVE_SLOT_ID, viewedMapId: snapshot.viewedMapId, recentPartnerActionIds: snapshot.recentPartnerActionIds, worldStartedOn: snapshot.worldStartedOn });
     const characters = transaction.objectStore(STORE_NAMES.characters);
@@ -39,6 +40,10 @@ export class IndexedDbSaveRepository implements SaveRepository {
     const existingPreset = await request(history.get([MAIN_SAVE_SLOT_ID, "main_partner", 1]));
     if (!existingPreset) history.put({ saveSlotId: MAIN_SAVE_SLOT_ID, profileId: "main_partner", revision: 1, profile: snapshot.partnerProfile.revision === 1 ? snapshot.partnerProfile : codyPresetProfile, dialogues: snapshot.partnerProfile.revision === 1 ? snapshot.partnerDialogues : codyPresetDialogues });
     await replacePartnerDialogues(transaction.objectStore(STORE_NAMES.dialogues), snapshot.partnerDialogues);
+    const items = transaction.objectStore(STORE_NAMES.items);
+    const itemKeys = await request<IDBValidKey[]>(items.getAllKeys(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"])));
+    itemKeys.forEach((key) => items.delete(key));
+    snapshot.items.forEach((item) => items.put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...item }));
     await transactionDone(transaction);
   }
 
@@ -53,7 +58,7 @@ export class IndexedDbSaveRepository implements SaveRepository {
     const now = new Date().toISOString();
     const slots = transaction.objectStore(STORE_NAMES.saveSlots);
     const existingSlot = await request<Record<string, unknown> | undefined>(slots.get(MAIN_SAVE_SLOT_ID));
-    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 4, updatedAt: now });
+    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 5, updatedAt: now });
     slots.put({ saveSlotId: MAIN_SAVE_SLOT_ID, createdAt: typeof existingSlot?.createdAt === "string" ? existingSlot.createdAt : now, updatedAt: now });
     transaction.objectStore(STORE_NAMES.partnerProfiles).put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...next.profile });
     transaction.objectStore(STORE_NAMES.partnerProfileHistory).put({ saveSlotId: MAIN_SAVE_SLOT_ID, profileId: "main_partner", revision: next.profile.revision, ...next });
@@ -82,6 +87,7 @@ export class IndexedDbSaveRepository implements SaveRepository {
         if (!db.objectStoreNames.contains(STORE_NAMES.partnerProfiles)) db.createObjectStore(STORE_NAMES.partnerProfiles, { keyPath: ["saveSlotId", "profileId"] });
         if (!db.objectStoreNames.contains(STORE_NAMES.partnerProfileHistory)) db.createObjectStore(STORE_NAMES.partnerProfileHistory, { keyPath: ["saveSlotId", "profileId", "revision"] });
         if (!db.objectStoreNames.contains(STORE_NAMES.dialogues)) db.createObjectStore(STORE_NAMES.dialogues, { keyPath: ["saveSlotId", "profileId", "dialogueId"] });
+        if (!db.objectStoreNames.contains(STORE_NAMES.items)) db.createObjectStore(STORE_NAMES.items, { keyPath: ["saveSlotId", "itemId"] });
       };
       openRequest.onerror = () => reject(openRequest.error ?? new Error("IndexedDBを開けませんでした"));
       openRequest.onblocked = () => reject(new Error("IndexedDBの更新がブロックされました"));

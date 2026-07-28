@@ -8,14 +8,17 @@ import type { ActionDecisionDebug, ActionId } from "../domain/partner/partnerAct
 import { advanceUnknownSprout, initialUnknownSprout, localDate, makeUnknownSproutAvailable, releaseUnknownSprout, type EventId, type UnknownSproutChoiceId, type UnknownSproutState } from "../domain/events/unknownSprout";
 import type { AppliedUnknownSproutExtension, PendingConsultation, UnknownSproutConsultationResult } from "../domain/consultation/unknownSproutConsultation";
 import { codyPresetDialogues, codyPresetProfile, type PartnerDialogueLine, type PartnerGameProfile, type PartnerProfileSnapshot, type PartnerResult, type PendingPartnerConsultation } from "../domain/partner/partnerProfile";
+import { starterItems, type GameItem } from "../domain/items/items";
 
 export type NavigationId = "map" | "items" | "memories" | "partner" | "settings";
 export type SaveStatus = "available" | "failed";
 export type PartnerActivityState = { enabled: boolean; phase: "idle" | "moving" | "acting"; actionId: ActionId | null; destination: LocationRef | null; lineId: string | null; recentActionIds: ActionId[]; lastDecision: ActionDecisionDebug | null };
 export type ConsultationView = "closed" | "compose" | "confirm";
 export type PartnerView = "profile" | "consult" | "confirm" | "history" | "history_detail" | "restore_confirm";
-export type AppState = { viewedMapId: MapId; activeNavigation: NavigationId; developerPanelOpen: boolean; characters: CharacterState[]; movements: Partial<Record<CharacterId, MovementState>>; partnerActivity: PartnerActivityState; partnerProfile: PartnerGameProfile; partnerDialogues: PartnerDialogueLine[]; partnerHistory: PartnerProfileSnapshot[]; pendingPartnerConsultation: PendingPartnerConsultation | null; partnerView: PartnerView; partnerResponse: string; partnerPreview: PartnerResult | null; selectedPartnerRevision: number | null; partnerMessage: string; unknownSprout: UnknownSproutState; unknownSproutExtension: AppliedUnknownSproutExtension | null; pendingConsultation: PendingConsultation | null; consultationView: ConsultationView; consultationResponse: string; consultationPreview: UnknownSproutConsultationResult | null; consultationMessage: string; worldStartedOn: string; openEventId: EventId | null; message: string; saveStatus: SaveStatus };
+export type ItemView = "list" | "detail" | "create";
+export type AppState = { items: GameItem[]; itemView: ItemView; selectedItemId: string | null; itemMessage: string; viewedMapId: MapId; activeNavigation: NavigationId; developerPanelOpen: boolean; characters: CharacterState[]; movements: Partial<Record<CharacterId, MovementState>>; partnerActivity: PartnerActivityState; partnerProfile: PartnerGameProfile; partnerDialogues: PartnerDialogueLine[]; partnerHistory: PartnerProfileSnapshot[]; pendingPartnerConsultation: PendingPartnerConsultation | null; partnerView: PartnerView; partnerResponse: string; partnerPreview: PartnerResult | null; selectedPartnerRevision: number | null; partnerMessage: string; unknownSprout: UnknownSproutState; unknownSproutExtension: AppliedUnknownSproutExtension | null; pendingConsultation: PendingConsultation | null; consultationView: ConsultationView; consultationResponse: string; consultationPreview: UnknownSproutConsultationResult | null; consultationMessage: string; worldStartedOn: string; openEventId: EventId | null; message: string; saveStatus: SaveStatus };
 export const initialState: AppState = {
+  items: structuredClone(starterItems), itemView: "list", selectedItemId: null, itemMessage: "",
   viewedMapId: "starter_house_interior",
   activeNavigation: "map",
   developerPanelOpen: false,
@@ -36,7 +39,10 @@ export class Store {
   subscribe(listener: Listener): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   private update(next: Partial<AppState>): void { this.state = { ...this.state, ...next }; this.listeners.forEach((listener) => listener(this.getState())); }
   setViewedMap(mapId: MapId): void { this.update({ viewedMapId: mapId }); }
-  setNavigation(activeNavigation: NavigationId): void { this.update({ activeNavigation, openEventId: null }); }
+  setNavigation(activeNavigation: NavigationId): void { this.update({ activeNavigation, openEventId: null, itemView: "list", selectedItemId: null, itemMessage: "" }); }
+  setItemView(itemView: ItemView, selectedItemId: string | null = null, itemMessage = ""): void { this.update({ itemView, selectedItemId, itemMessage }); }
+  setItemMessage(itemMessage: string): void { this.update({ itemMessage }); }
+  addItem(item: GameItem): void { this.update({ items: [...this.state.items, structuredClone(item)], itemView: "detail", selectedItemId: item.itemId, itemMessage: "アイテムを登録しました。" }); }
   toggleDeveloperPanel(force?: boolean): void { this.update({ developerPanelOpen: force ?? !this.state.developerPanelOpen }); }
   setSaveStatus(saveStatus: SaveStatus): void { if (this.state.saveStatus !== saveStatus) this.update({ saveStatus }); }
   setPartnerActivity(partnerActivity: PartnerActivityState, message?: string): void { this.update({ partnerActivity: { ...partnerActivity, destination: partnerActivity.destination && { ...partnerActivity.destination }, recentActionIds: partnerActivity.recentActionIds.slice(0, 5) }, ...(message ? { message } : {}) }); }
