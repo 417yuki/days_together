@@ -38,7 +38,8 @@ export const MapView = ({ map, characters, characterImages = {}, backgroundUrl, 
     const marker = document.createElement("button"); marker.type = "button"; marker.className = `event-marker event-marker--${unknownSprout.stage}`; marker.dataset.focusKey = "event-unknown_sprout";
     marker.textContent = unknownSprout.stage === "flower" ? "✿ 花" : unknownSprout.stage === "growing" ? "🌱 育つ芽" : unknownSprout.stage === "observed" ? "🌱 観察中" : "🌱 芽";
     marker.setAttribute("aria-label", unknownSprout.stage === "flower" ? "知らない芽から咲いた花。概要を見る" : `${marker.textContent}。知らない芽の概要を見る`);
-    marker.style.left = `${unknownSproutDefinition.position.x * 100}%`; marker.style.top = `${unknownSproutDefinition.position.y * 100}%`; marker.addEventListener("click", () => onEvent(marker)); canvas.append(marker);
+    const eventPosition = map.locations.find(({ locationId }) => locationId === "garden")?.position ?? unknownSproutDefinition.position;
+    marker.style.left = `${eventPosition.x * 100}%`; marker.style.top = `${eventPosition.y * 100}%`; marker.addEventListener("click", () => onEvent(marker)); canvas.append(marker);
   }
   selectCharactersOnMap(characters, map).forEach(({ character: state, location }) => canvas.append(character(state, location, characterImages[state.characterId])));
   const proxies = selectProxyCharacters(characters, map);

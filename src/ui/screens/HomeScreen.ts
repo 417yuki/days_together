@@ -12,13 +12,14 @@ import { MapView } from "../components/MapView";
 import { RecentActivity } from "../components/RecentActivity";
 import type { UnknownSproutChoiceId, UnknownSproutState } from "../../domain/events/unknownSprout";
 import { PartnerScreen, type PartnerScreenActions } from "./PartnerScreen";
-import { SettingsScreen, type CharacterImageUi, type CharacterVisualUi, type MapBackgroundUi, type SettingsActions } from "./SettingsScreen";
+import { SettingsScreen, type CharacterImageUi, type CharacterVisualUi, type LocationLayoutUi, type MapBackgroundUi, type SettingsActions } from "./SettingsScreen";
+import { resolveMapLayout } from "../../domain/maps/locationLayout";
 import type { MapBackgroundId } from "../../domain/assets/mapBackgrounds";
 import { ItemsScreen, type ItemImageUi, type ItemScreenActions } from "./ItemsScreen";
 
 export type ScreenActions = PartnerScreenActions & ItemScreenActions & SettingsActions & { map: (id: MapId) => void; navigation: (id: NavigationId) => void; developer: (open?: boolean) => void; move: (id: CharacterId, destination: LocationRef) => void; pausePartner: () => void; resumePartner: () => void; decidePartner: () => void; openEvent: () => void; closeEvent: () => void; advanceEvent: (choice: UnknownSproutChoiceId) => void; triggerEvent: () => void; resetEvent: () => void; reset: () => void; startConsultation: () => void; setConsultationResponse: (value: string) => void; checkConsultation: () => void; editConsultation: () => void; cancelConsultation: () => void; applyConsultation: () => void };
-export const HomeScreen = (state: AppState, actions: ScreenActions, itemImage?: ItemImageUi, characterImages?: Record<CharacterId, CharacterImageUi>, backgrounds?: Record<MapBackgroundId, MapBackgroundUi>, visuals?: Record<CharacterId, CharacterVisualUi>): HTMLElement => {
-  const shell = document.createElement("div"); shell.className = "app-shell"; const map = getMapById(state.viewedMapId); shell.append(Header(map, () => actions.developer(true)));
+export const HomeScreen = (state: AppState, actions: ScreenActions, itemImage?: ItemImageUi, characterImages?: Record<CharacterId, CharacterImageUi>, backgrounds?: Record<MapBackgroundId, MapBackgroundUi>, visuals?: Record<CharacterId, CharacterVisualUi>, layouts?: Record<MapBackgroundId, LocationLayoutUi>): HTMLElement => {
+  const shell = document.createElement("div"); shell.className = "app-shell"; const presetMap = getMapById(state.viewedMapId); const map = resolveMapLayout(presetMap, state.mapVisuals[presetMap.mapId].locationLayout); shell.append(Header(map, () => actions.developer(true)));
   const main = document.createElement("main");
   if (state.saveStatus === "failed") {
     const warning = document.createElement("p"); warning.className = "save-warning"; warning.setAttribute("role", "status"); warning.setAttribute("aria-live", "polite"); warning.textContent = "保存できませんでした。この画面を閉じると変更が失われる可能性があります。"; main.append(warning);
@@ -36,7 +37,7 @@ export const HomeScreen = (state: AppState, actions: ScreenActions, itemImage?: 
   } else if (state.activeNavigation === "items") {
     main.append(ItemsScreen(state, actions, itemImage));
   } else if (state.activeNavigation === "settings" && characterImages && backgrounds) {
-    main.append(SettingsScreen(state, actions, characterImages, backgrounds, visuals!));
+    main.append(SettingsScreen(state, actions, characterImages, backgrounds, visuals!, layouts!));
   } else {
     const pending = document.createElement("section"); pending.className = "content-card pending-screen";
     pending.append(textElement("p", "ただいま準備中", "eyebrow"), textElement("h2", `${navigationLabels[state.activeNavigation]}画面は準備中です`), textElement("p", "これからの暮らしと一緒に、少しずつ増えていきます。")); main.append(pending);
