@@ -5,6 +5,7 @@ import type { UnknownSproutState } from "../domain/events/unknownSprout";
 import type { AppliedUnknownSproutExtension, ConsultationCheckpoint, PendingConsultation } from "../domain/consultation/unknownSproutConsultation";
 import type { PartnerDialogueLine, PartnerGameProfile, PartnerProfileSnapshot, PendingPartnerConsultation } from "../domain/partner/partnerProfile";
 import type { GameItem } from "../domain/items/items";
+import type { CharacterPinAsset } from "../domain/assets/characterPins";
 import type { ItemImageAsset } from "../domain/assets/itemImages";
 
 export const DB_NAME = "futari-biyori";
@@ -23,7 +24,7 @@ export type SaveSnapshot = {
   worldStartedOn: string;
   unknownSprout: UnknownSproutState;
   unknownSproutExtension: AppliedUnknownSproutExtension | null;
-  characters: Array<Pick<CharacterState, "characterId" | "name" | "marker" | "mapId" | "locationId">>;
+  characters: Array<Pick<CharacterState, "characterId" | "name" | "marker" | "mapId" | "locationId" | "imageAssetId">>;
   partnerProfile: PartnerGameProfile; partnerDialogues: PartnerDialogueLine[]; items: GameItem[];
 };
 
@@ -42,6 +43,7 @@ export type CharacterRecord = {
   marker: string;
   mapId: MapId;
   locationId: string;
+  imageAssetId: string | null;
 };
 
 export interface SaveRepository {
@@ -55,4 +57,7 @@ export interface SaveRepository {
   getItemImage?(assetId: string): Promise<ItemImageAsset | null>;
   putItemImage?(itemId: string, asset: ItemImageAsset): Promise<GameItem>;
   deleteItemImage?(itemId: string): Promise<GameItem>;
+  getCharacterPin?(assetId: string, characterId: CharacterId): Promise<CharacterPinAsset | null>;
+  putCharacterPin?(characterId: CharacterId, asset: CharacterPinAsset): Promise<CharacterState>;
+  deleteCharacterPin?(characterId: CharacterId): Promise<CharacterState>;
 }

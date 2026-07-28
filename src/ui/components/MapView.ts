@@ -14,9 +14,10 @@ type MapViewOptions = {
   onResidents: (trigger: HTMLElement) => void;
   unknownSprout: UnknownSproutState;
   onEvent: (trigger: HTMLElement) => void;
+  characterImages?: Partial<Record<"user" | "cody", string>>;
 };
 
-export const MapView = ({ map, characters, feedback: feedbackText, onMapChange, onLocation, onHouse, onResidents, unknownSprout, onEvent }: MapViewOptions): HTMLElement => {
+export const MapView = ({ map, characters, characterImages = {}, feedback: feedbackText, onMapChange, onLocation, onHouse, onResidents, unknownSprout, onEvent }: MapViewOptions): HTMLElement => {
   const section = document.createElement("section"); section.className = "map-section"; section.setAttribute("aria-labelledby", "map-heading");
   const heading = document.createElement("h2"); heading.id = "map-heading"; heading.className = "visually-hidden"; heading.textContent = `${map.name}のマップ`;
   const tabs = document.createElement("div"); tabs.className = "map-tabs"; tabs.setAttribute("role", "group"); tabs.setAttribute("aria-label", "表示するマップ");
@@ -36,11 +37,11 @@ export const MapView = ({ map, characters, feedback: feedbackText, onMapChange, 
     marker.setAttribute("aria-label", unknownSprout.stage === "flower" ? "知らない芽から咲いた花。概要を見る" : `${marker.textContent}。知らない芽の概要を見る`);
     marker.style.left = `${unknownSproutDefinition.position.x * 100}%`; marker.style.top = `${unknownSproutDefinition.position.y * 100}%`; marker.addEventListener("click", () => onEvent(marker)); canvas.append(marker);
   }
-  selectCharactersOnMap(characters, map).forEach(({ character: state, location }) => canvas.append(character(state, location)));
+  selectCharactersOnMap(characters, map).forEach(({ character: state, location }) => canvas.append(character(state, location, characterImages[state.characterId])));
   const proxies = selectProxyCharacters(characters, map);
   if (proxies.length > 0) {
     const residents = document.createElement("button"); residents.type = "button"; residents.className = "residents-pin"; positionAt(residents, proxies[0].location);
-    const markers = document.createElement("strong"); markers.textContent = proxies.map(({ character }) => character.marker).join("・");
+    const markers = document.createElement("strong"); proxies.forEach(({ character }) => { const url = characterImages[character.characterId]; if (url) { const image = document.createElement("img"); image.src = url; image.alt = ""; markers.append(image); } else markers.append(document.createTextNode(character.marker)); });
     const description = document.createElement("span"); description.textContent = `${proxies.map(({ character }) => character.name).join("と")}は別のマップにいます`;
     residents.append(markers, description); residents.dataset.focusKey = `residents-${map.mapId}`; residents.setAttribute("aria-label", `${description.textContent}。居場所を確認`); residents.addEventListener("click", () => onResidents(residents)); canvas.append(residents);
   }
@@ -53,7 +54,7 @@ const positionAt = (element: HTMLElement, location: LocationDefinition): void =>
   element.style.top = `${location.position.y * 100}%`;
 };
 
-const character = (state: CharacterState, location: LocationDefinition): HTMLElement => {
-  const pin = document.createElement("div"); pin.className = "character-pin"; positionAt(pin, location); pin.textContent = state.marker;
+const character = (state: CharacterState, location: LocationDefinition, imageUrl?: string): HTMLElement => {
+  const pin = document.createElement("div"); pin.className = "character-pin"; positionAt(pin, location); if (imageUrl) { const image = document.createElement("img"); image.src = imageUrl; image.alt = ""; pin.append(image); } else pin.textContent = state.marker;
   const label = `${state.name}：${location.label}`; pin.setAttribute("role", "img"); pin.setAttribute("aria-label", label); pin.title = label; return pin;
 };

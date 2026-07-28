@@ -13,3 +13,4 @@
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } .character-pin { animation: none !important; } }
 .event-marker { position: absolute; z-index: 4; min-width: 52px; min-height: 44px; padding: 5px; transform: translate(-50%, -50%); border: 2px solid #567a43; border-radius: 50%; background: #fffbea; color: #35542d; font-size: .7rem; font-weight: 800; box-shadow: 0 3px 9px rgb(40 60 30 / 25%); }
 .event-marker--flower { border-color: #9b6b2f; background: #fff3b8; color: #70471e; }
+.character-pin { overflow: hidden; }.residents-pin strong { display: flex; gap: 2px; align-items: center; }.residents-pin strong img { width: 28px; height: 28px; overflow: hidden; border-radius: 50%; }

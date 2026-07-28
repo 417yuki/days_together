@@ -7,6 +7,7 @@ import { actionIds, type ActionId } from "../domain/partner/partnerActions";
 import { codyPresetDialogues, codyPresetProfile, parseDialogue, parsePendingPartnerConsultation, parseProfile, type PartnerProfileSnapshot } from "../domain/partner/partnerProfile";
 import { initialUnknownSprout, normalizeLocalDate, parseUnknownSprout } from "../domain/events/unknownSprout";
 import { parseAppliedExtension, parsePendingConsultation } from "../domain/consultation/unknownSproutConsultation";
+import { isSafeAssetId } from "../domain/assets/itemImages";
 import { mergeStarterItems } from "../domain/items/items";
 
 const characterIds: CharacterId[] = ["user", "cody"];
@@ -18,7 +19,7 @@ export const createSaveSnapshot = (state: AppState): SaveSnapshot => ({
   worldStartedOn: state.worldStartedOn,
   unknownSprout: structuredClone(state.unknownSprout),
   unknownSproutExtension: structuredClone(state.unknownSproutExtension),
-  characters: state.characters.map(({ characterId, name, marker, mapId, locationId }) => ({ characterId, name, marker, mapId, locationId })), partnerProfile: structuredClone(state.partnerProfile), partnerDialogues: structuredClone(state.partnerDialogues), items: structuredClone(state.items)
+  characters: state.characters.map(({ characterId, name, marker, mapId, locationId, imageAssetId }) => ({ characterId, name, marker, mapId, locationId, imageAssetId })), partnerProfile: structuredClone(state.partnerProfile), partnerDialogues: structuredClone(state.partnerDialogues), items: structuredClone(state.items)
 });
 
 export const restoreAppState = (initial: AppState, saved: StoredSaveData, now = new Date()): AppState => {
@@ -81,7 +82,7 @@ const parseCharacter = (value: unknown): CharacterState | null => {
   if (!candidate || candidate.saveSlotId !== MAIN_SAVE_SLOT_ID || !isCharacterId(candidate.characterId) || typeof candidate.name !== "string" || typeof candidate.marker !== "string" || !isMapId(candidate.mapId) || typeof candidate.locationId !== "string") return null;
   const map = starterMaps.find(({ mapId }) => mapId === candidate.mapId);
   if (!map?.locations.some(({ locationId }) => locationId === candidate.locationId)) return null;
-  return { characterId: candidate.characterId, name: candidate.name, marker: candidate.marker, mapId: candidate.mapId, locationId: candidate.locationId };
+  return { characterId: candidate.characterId, name: candidate.name, marker: candidate.marker, mapId: candidate.mapId, locationId: candidate.locationId, imageAssetId: isSafeAssetId(candidate.imageAssetId) ? candidate.imageAssetId : null };
 };
 
 const record = (value: unknown): Record<string, unknown> | null => typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null;
