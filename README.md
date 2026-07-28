@@ -19,21 +19,24 @@
 3. [`docs/PRODUCT_SPEC.md`](./docs/PRODUCT_SPEC.md)
 4. [`docs/ITEM_VISUALS.md`](./docs/ITEM_VISUALS.md)
 5. [`docs/ROADMAP.md`](./docs/ROADMAP.md)
-6. [`docs/CHANGE_CONTROL.md`](./docs/CHANGE_CONTROL.md)
+6. [`docs/NEXT_TASK.md`](./docs/NEXT_TASK.md)
+7. [`docs/CHANGE_CONTROL.md`](./docs/CHANGE_CONTROL.md)
 
 この文書群を、現在の製品仕様の一次情報とします。
 
 ## 現在の実装段階
 
-Milestone 0＋1の初期実装まで完了しています。
+Milestone 0、1、1.1まで完了しています。
 
 - Vite + TypeScript の土台
 - iPhone縦画面向けUI
 - 家の中と庭の仮マップ
-- マップ切り替え
-- 仮キャラクターピン
+- 縦長3:4マップ
+- キャラクター位置の地点データ連動
 - 別マップ人物の代理表示
+- 安全な動的文字描画
 - 下部ナビゲーション
 - 開発者パネル
+- GitHub Actionsによるtypecheck、test、build
 
-次は、Milestone 1.1 の補修を行った後、Milestone 2 のキャラクター移動へ進みます。詳細は `docs/ROADMAP.md` を参照してください。
+次はMilestone 2として、主人公とコーディが接続地点とゲートを通って家と庭を移動する機能を実装します。詳細は `docs/NEXT_TASK.md` を参照してください。
