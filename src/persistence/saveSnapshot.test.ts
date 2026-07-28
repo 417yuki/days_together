@@ -9,8 +9,8 @@ const character = (characterId: string, mapId: string, locationId: string) => ({
 describe("save snapshots", () => {
   it("extracts only the stable map and character fields", () => {
     const snapshot = createSaveSnapshot({ ...initialState, activeNavigation: "settings", developerPanelOpen: true, message: "temporary", movements: { user: { path: [], nextIndex: 1, destination: { mapId: "starter_garden", locationId: "garden" } } } });
-    expect(snapshot).toEqual(expect.objectContaining({ viewedMapId: "starter_house_interior", recentPartnerActionIds: [], worldStartedOn: initialState.worldStartedOn, unknownSprout: initialState.unknownSprout, unknownSproutExtension: null, characters: initialState.characters, partnerProfile: initialState.partnerProfile, partnerDialogues: initialState.partnerDialogues }));
-    expect(snapshot).not.toHaveProperty("movements"); expect(snapshot).not.toHaveProperty("message"); expect(snapshot).not.toHaveProperty("developerPanelOpen");
+    expect(snapshot).toEqual(expect.objectContaining({ viewedMapId: "starter_house_interior", recentPartnerActionIds: [], worldStartedOn: initialState.worldStartedOn, unknownSprout: initialState.unknownSprout, unknownSproutExtension: null, characters: initialState.characters, partnerProfile: initialState.partnerProfile, partnerDialogues: initialState.partnerDialogues, items: initialState.items }));
+    expect(snapshot).not.toHaveProperty("itemView"); expect(snapshot).not.toHaveProperty("selectedItemId"); expect(snapshot).not.toHaveProperty("itemMessage"); expect(snapshot).not.toHaveProperty("movements"); expect(snapshot).not.toHaveProperty("message"); expect(snapshot).not.toHaveProperty("developerPanelOpen");
   });
 
   it("restores the viewed map and both valid character locations without transient state", () => {

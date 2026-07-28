@@ -7,6 +7,7 @@ import { actionIds, type ActionId } from "../domain/partner/partnerActions";
 import { codyPresetDialogues, codyPresetProfile, parseDialogue, parsePendingPartnerConsultation, parseProfile, type PartnerProfileSnapshot } from "../domain/partner/partnerProfile";
 import { initialUnknownSprout, normalizeLocalDate, parseUnknownSprout } from "../domain/events/unknownSprout";
 import { parseAppliedExtension, parsePendingConsultation } from "../domain/consultation/unknownSproutConsultation";
+import { mergeStarterItems } from "../domain/items/items";
 
 const characterIds: CharacterId[] = ["user", "cody"];
 const mapIds = new Set<MapId>(starterMaps.map(({ mapId }) => mapId));
@@ -17,7 +18,7 @@ export const createSaveSnapshot = (state: AppState): SaveSnapshot => ({
   worldStartedOn: state.worldStartedOn,
   unknownSprout: structuredClone(state.unknownSprout),
   unknownSproutExtension: structuredClone(state.unknownSproutExtension),
-  characters: state.characters.map(({ characterId, name, marker, mapId, locationId }) => ({ characterId, name, marker, mapId, locationId })), partnerProfile: structuredClone(state.partnerProfile), partnerDialogues: structuredClone(state.partnerDialogues)
+  characters: state.characters.map(({ characterId, name, marker, mapId, locationId }) => ({ characterId, name, marker, mapId, locationId })), partnerProfile: structuredClone(state.partnerProfile), partnerDialogues: structuredClone(state.partnerDialogues), items: structuredClone(state.items)
 });
 
 export const restoreAppState = (initial: AppState, saved: StoredSaveData, now = new Date()): AppState => {
@@ -70,7 +71,8 @@ export const restoreAppState = (initial: AppState, saved: StoredSaveData, now = 
     consultationView: "closed", consultationResponse: "", consultationPreview: null, consultationMessage: "",
     partnerActivity: { ...initial.partnerActivity, enabled: true, phase: "idle", actionId: null, destination: null, lineId: null, recentActionIds, lastDecision: null },
     partnerProfile, partnerDialogues, partnerHistory: partnerHistory.length ? partnerHistory : [{ profile: codyPresetProfile, dialogues: codyPresetDialogues }], pendingPartnerConsultation, partnerView: "profile", partnerResponse: "", partnerPreview: null, selectedPartnerRevision: null, partnerMessage: "",
-    characters: initial.characters.map((fallback) => { const restored = validCharacters.get(fallback.characterId) ?? { ...fallback }; return restored.characterId === "cody" ? { ...restored, name: partnerProfile.displayName } : restored; })
+    characters: initial.characters.map((fallback) => { const restored = validCharacters.get(fallback.characterId) ?? { ...fallback }; return restored.characterId === "cody" ? { ...restored, name: partnerProfile.displayName } : restored; }),
+    items: mergeStarterItems(saved.items ?? []), itemView: "list", selectedItemId: null, itemMessage: ""
   };
 };
 

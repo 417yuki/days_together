@@ -4,15 +4,16 @@ import type { ActionId } from "../domain/partner/partnerActions";
 import type { UnknownSproutState } from "../domain/events/unknownSprout";
 import type { AppliedUnknownSproutExtension, ConsultationCheckpoint, PendingConsultation } from "../domain/consultation/unknownSproutConsultation";
 import type { PartnerDialogueLine, PartnerGameProfile, PartnerProfileSnapshot, PendingPartnerConsultation } from "../domain/partner/partnerProfile";
+import type { GameItem } from "../domain/items/items";
 
 export const DB_NAME = "futari-biyori";
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 export const MAIN_SAVE_SLOT_ID = "main";
 export const STORE_NAMES = {
   appMeta: "appMeta",
   saveSlots: "saveSlots",
   worldStates: "worldStates",
-  characters: "characters", events: "events", consultations: "consultations", checkpoints: "checkpoints", partnerProfiles: "partnerProfiles", partnerProfileHistory: "partnerProfileHistory", dialogues: "dialogues"
+  characters: "characters", events: "events", consultations: "consultations", checkpoints: "checkpoints", partnerProfiles: "partnerProfiles", partnerProfileHistory: "partnerProfileHistory", dialogues: "dialogues", items: "items"
 } as const;
 
 export type SaveSnapshot = {
@@ -22,7 +23,7 @@ export type SaveSnapshot = {
   unknownSprout: UnknownSproutState;
   unknownSproutExtension: AppliedUnknownSproutExtension | null;
   characters: Array<Pick<CharacterState, "characterId" | "name" | "marker" | "mapId" | "locationId">>;
-  partnerProfile: PartnerGameProfile; partnerDialogues: PartnerDialogueLine[];
+  partnerProfile: PartnerGameProfile; partnerDialogues: PartnerDialogueLine[]; items: GameItem[];
 };
 
 export type StoredSaveData = {
@@ -30,7 +31,7 @@ export type StoredSaveData = {
   characters: unknown[];
   events?: unknown[];
   consultations?: unknown[];
-  partnerProfiles?: unknown[]; partnerProfileHistory?: unknown[]; dialogues?: unknown[];
+  partnerProfiles?: unknown[]; partnerProfileHistory?: unknown[]; dialogues?: unknown[]; items?: unknown[];
 };
 
 export type CharacterRecord = {
