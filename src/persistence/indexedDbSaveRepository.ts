@@ -5,28 +5,30 @@ export class IndexedDbSaveRepository implements SaveRepository {
 
   async loadMainSave(): Promise<StoredSaveData | null> {
     const db = await this.open();
-    const transaction = db.transaction([STORE_NAMES.saveSlots, STORE_NAMES.worldStates, STORE_NAMES.characters], "readonly");
+    const transaction = db.transaction([STORE_NAMES.saveSlots, STORE_NAMES.worldStates, STORE_NAMES.characters, STORE_NAMES.events], "readonly");
     const slot = await request(transaction.objectStore(STORE_NAMES.saveSlots).get(MAIN_SAVE_SLOT_ID));
     if (!slot) { await transactionDone(transaction); return null; }
-    const [worldState, characters] = await Promise.all([
+    const [worldState, characters, events] = await Promise.all([
       request(transaction.objectStore(STORE_NAMES.worldStates).get(MAIN_SAVE_SLOT_ID)),
-      request(transaction.objectStore(STORE_NAMES.characters).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"])))
+      request(transaction.objectStore(STORE_NAMES.characters).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"]))),
+      request(transaction.objectStore(STORE_NAMES.events).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"])))
     ]);
     await transactionDone(transaction);
-    return { worldState, characters: Array.isArray(characters) ? characters : [] };
+    return { worldState, characters: Array.isArray(characters) ? characters : [], events: Array.isArray(events) ? events : [] };
   }
 
   async saveMain(snapshot: SaveSnapshot): Promise<void> {
     const db = await this.open();
-    const transaction = db.transaction([STORE_NAMES.appMeta, STORE_NAMES.saveSlots, STORE_NAMES.worldStates, STORE_NAMES.characters], "readwrite");
+    const transaction = db.transaction([STORE_NAMES.appMeta, STORE_NAMES.saveSlots, STORE_NAMES.worldStates, STORE_NAMES.characters, STORE_NAMES.events], "readwrite");
     const now = new Date().toISOString();
     const slots = transaction.objectStore(STORE_NAMES.saveSlots);
     const existing = await request<Record<string, unknown> | undefined>(slots.get(MAIN_SAVE_SLOT_ID));
-    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 1, updatedAt: now });
+    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 2, updatedAt: now });
     slots.put({ saveSlotId: MAIN_SAVE_SLOT_ID, createdAt: typeof existing?.createdAt === "string" ? existing.createdAt : now, updatedAt: now });
-    transaction.objectStore(STORE_NAMES.worldStates).put({ saveSlotId: MAIN_SAVE_SLOT_ID, viewedMapId: snapshot.viewedMapId, recentPartnerActionIds: snapshot.recentPartnerActionIds });
+    transaction.objectStore(STORE_NAMES.worldStates).put({ saveSlotId: MAIN_SAVE_SLOT_ID, viewedMapId: snapshot.viewedMapId, recentPartnerActionIds: snapshot.recentPartnerActionIds, worldStartedOn: snapshot.worldStartedOn });
     const characters = transaction.objectStore(STORE_NAMES.characters);
     snapshot.characters.forEach((character) => characters.put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...character } satisfies CharacterRecord));
+    transaction.objectStore(STORE_NAMES.events).put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...snapshot.unknownSprout });
     await transactionDone(transaction);
   }
 
@@ -40,6 +42,7 @@ export class IndexedDbSaveRepository implements SaveRepository {
         if (!db.objectStoreNames.contains(STORE_NAMES.saveSlots)) db.createObjectStore(STORE_NAMES.saveSlots, { keyPath: "saveSlotId" });
         if (!db.objectStoreNames.contains(STORE_NAMES.worldStates)) db.createObjectStore(STORE_NAMES.worldStates, { keyPath: "saveSlotId" });
         if (!db.objectStoreNames.contains(STORE_NAMES.characters)) db.createObjectStore(STORE_NAMES.characters, { keyPath: ["saveSlotId", "characterId"] });
+        if (!db.objectStoreNames.contains(STORE_NAMES.events)) db.createObjectStore(STORE_NAMES.events, { keyPath: ["saveSlotId", "eventId"] });
       };
       openRequest.onerror = () => reject(openRequest.error ?? new Error("IndexedDBを開けませんでした"));
       openRequest.onblocked = () => reject(new Error("IndexedDBの更新がブロックされました"));

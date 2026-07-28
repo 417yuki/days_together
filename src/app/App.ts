@@ -15,6 +15,8 @@ export class App {
     this.store.subscribe((state) => { this.render(); void this.saves?.save(state); });
     this.render();
     this.partner.start();
+    this.store.checkEvents();
+    document.addEventListener("visibilitychange", this.onVisibility);
   }
   private render(): void {
     const actions = {
@@ -23,6 +25,7 @@ export class App {
       developer: (open?: boolean) => this.store.toggleDeveloperPanel(open),
       move: (characterId: CharacterId, destination: LocationRef) => this.move(characterId, destination),
       pausePartner: () => this.partner.pause(), resumePartner: () => this.partner.resume(), decidePartner: () => this.partner.decideNow(),
+      openEvent: () => this.store.openEvent(), closeEvent: () => { this.store.closeEvent(); requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-focus-key="event-unknown_sprout"]')?.focus()); }, advanceEvent: (choice: Parameters<Store["advanceEvent"]>[0]) => { this.store.advanceEvent(choice); }, triggerEvent: () => this.store.triggerEvent(), resetEvent: () => this.store.resetEvent(),
       reset: () => { this.stopTimers(); this.store.reset(); this.partner.reset(); void this.saves?.save(this.store.getState(), true); }
     };
     this.root.replaceChildren(HomeScreen(this.store.getState(), actions));
@@ -33,5 +36,6 @@ export class App {
     const step = (): void => { if (this.store.advanceCharacter(characterId)) this.movementTimers.set(characterId, window.setTimeout(step, MOVEMENT_STEP_MS)); else { this.movementTimers.delete(characterId); done?.(true); } };
     this.movementTimers.set(characterId, window.setTimeout(step, MOVEMENT_STEP_MS));
   }
+  private onVisibility = (): void => { if (document.visibilityState === "visible") this.store.checkEvents(); };
   private stopTimers(): void { this.movementTimers.forEach((timer) => clearTimeout(timer)); this.movementTimers.clear(); }
 }
