@@ -3,15 +3,16 @@ import type { MapId } from "../domain/maps/mapTypes";
 import type { ActionId } from "../domain/partner/partnerActions";
 import type { UnknownSproutState } from "../domain/events/unknownSprout";
 import type { AppliedUnknownSproutExtension, ConsultationCheckpoint, PendingConsultation } from "../domain/consultation/unknownSproutConsultation";
+import type { PartnerDialogueLine, PartnerGameProfile, PartnerProfileSnapshot, PendingPartnerConsultation } from "../domain/partner/partnerProfile";
 
 export const DB_NAME = "futari-biyori";
-export const DB_VERSION = 3;
+export const DB_VERSION = 4;
 export const MAIN_SAVE_SLOT_ID = "main";
 export const STORE_NAMES = {
   appMeta: "appMeta",
   saveSlots: "saveSlots",
   worldStates: "worldStates",
-  characters: "characters", events: "events", consultations: "consultations", checkpoints: "checkpoints"
+  characters: "characters", events: "events", consultations: "consultations", checkpoints: "checkpoints", partnerProfiles: "partnerProfiles", partnerProfileHistory: "partnerProfileHistory", dialogues: "dialogues"
 } as const;
 
 export type SaveSnapshot = {
@@ -21,6 +22,7 @@ export type SaveSnapshot = {
   unknownSprout: UnknownSproutState;
   unknownSproutExtension: AppliedUnknownSproutExtension | null;
   characters: Array<Pick<CharacterState, "characterId" | "name" | "marker" | "mapId" | "locationId">>;
+  partnerProfile: PartnerGameProfile; partnerDialogues: PartnerDialogueLine[];
 };
 
 export type StoredSaveData = {
@@ -28,6 +30,7 @@ export type StoredSaveData = {
   characters: unknown[];
   events?: unknown[];
   consultations?: unknown[];
+  partnerProfiles?: unknown[]; partnerProfileHistory?: unknown[]; dialogues?: unknown[];
 };
 
 export type CharacterRecord = {
@@ -44,4 +47,7 @@ export interface SaveRepository {
   saveMain(snapshot: SaveSnapshot): Promise<void>;
   savePendingConsultation?(pending: PendingConsultation): Promise<void>;
   applyConsultation?(snapshot: SaveSnapshot, pending: PendingConsultation, extension: AppliedUnknownSproutExtension, checkpoint: ConsultationCheckpoint): Promise<void>;
+  savePendingPartner?(pending: PendingPartnerConsultation): Promise<void>;
+  discardPartnerConsultation?(pending: PendingPartnerConsultation): Promise<void>;
+  applyPartner?(snapshot: SaveSnapshot, pending: PendingPartnerConsultation | null, next: PartnerProfileSnapshot, checkpoint: unknown): Promise<void>;
 }

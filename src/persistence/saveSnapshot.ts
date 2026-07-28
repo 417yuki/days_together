@@ -4,6 +4,7 @@ import type { CharacterId, CharacterState } from "../domain/characters/character
 import type { MapId } from "../domain/maps/mapTypes";
 import { MAIN_SAVE_SLOT_ID, type SaveSnapshot, type StoredSaveData } from "./persistenceTypes";
 import { actionIds, type ActionId } from "../domain/partner/partnerActions";
+import { codyPresetDialogues, codyPresetProfile, parseDialogue, parsePendingPartnerConsultation, parseProfile, type PartnerProfileSnapshot } from "../domain/partner/partnerProfile";
 import { initialUnknownSprout, normalizeLocalDate, parseUnknownSprout } from "../domain/events/unknownSprout";
 import { parseAppliedExtension, parsePendingConsultation } from "../domain/consultation/unknownSproutConsultation";
 
@@ -16,7 +17,7 @@ export const createSaveSnapshot = (state: AppState): SaveSnapshot => ({
   worldStartedOn: state.worldStartedOn,
   unknownSprout: structuredClone(state.unknownSprout),
   unknownSproutExtension: structuredClone(state.unknownSproutExtension),
-  characters: state.characters.map(({ characterId, name, marker, mapId, locationId }) => ({ characterId, name, marker, mapId, locationId }))
+  characters: state.characters.map(({ characterId, name, marker, mapId, locationId }) => ({ characterId, name, marker, mapId, locationId })), partnerProfile: structuredClone(state.partnerProfile), partnerDialogues: structuredClone(state.partnerDialogues)
 });
 
 export const restoreAppState = (initial: AppState, saved: StoredSaveData, now = new Date()): AppState => {
@@ -30,6 +31,11 @@ export const restoreAppState = (initial: AppState, saved: StoredSaveData, now = 
   const extension = eventCandidates.length === 1 ? parseAppliedExtension(record(eventCandidates[0])?.extension) : null;
   const pendingCandidates = (saved.consultations ?? []).map(parsePendingConsultation).filter((value): value is NonNullable<typeof value> => value !== null);
   const pendingConsultation = !extension && pendingCandidates.length === 1 && unknownSprout.status === "completed" && pendingCandidates[0].expectedPath === unknownSprout.path ? pendingCandidates[0] : null;
+  const partnerProfile = (saved.partnerProfiles ?? []).map(parseProfile).find((value) => value?.profileId === "main_partner") ?? codyPresetProfile;
+  const validDialogues = (saved.dialogues ?? []).map(parseDialogue).filter((value): value is NonNullable<typeof value> => value !== null);
+  const partnerDialogues = actionIds.flatMap((id) => { const forAction = validDialogues.filter((line) => line.actionId === id); return forAction.some((line) => line.enabled) ? forAction : codyPresetDialogues.filter((line) => line.actionId === id); });
+  const partnerHistory = (saved.partnerProfileHistory ?? []).flatMap((value) => { if (!value || typeof value !== "object") return []; const raw = value as { profile?: unknown; dialogues?: unknown[] }; const profile = parseProfile(raw.profile); const dialogues = (raw.dialogues ?? []).map(parseDialogue).filter((line): line is NonNullable<typeof line> => line !== null); return profile ? [{ profile, dialogues } satisfies PartnerProfileSnapshot] : []; });
+  const pendingPartnerConsultation = (saved.consultations ?? []).map(parsePendingPartnerConsultation).find((value) => value !== null) ?? null;
 
   saved.characters.forEach((value) => {
     const candidate = parseCharacter(value);
@@ -52,7 +58,8 @@ export const restoreAppState = (initial: AppState, saved: StoredSaveData, now = 
     pendingConsultation,
     consultationView: "closed", consultationResponse: "", consultationPreview: null, consultationMessage: "",
     partnerActivity: { ...initial.partnerActivity, enabled: true, phase: "idle", actionId: null, destination: null, lineId: null, recentActionIds, lastDecision: null },
-    characters: initial.characters.map((fallback) => validCharacters.get(fallback.characterId) ?? { ...fallback })
+    partnerProfile, partnerDialogues, partnerHistory: partnerHistory.length ? partnerHistory : [{ profile: codyPresetProfile, dialogues: codyPresetDialogues }], pendingPartnerConsultation, partnerView: "profile", partnerResponse: "", partnerPreview: null, selectedPartnerRevision: null, partnerMessage: "",
+    characters: initial.characters.map((fallback) => { const restored = validCharacters.get(fallback.characterId) ?? { ...fallback }; return restored.characterId === "cody" ? { ...restored, name: partnerProfile.displayName } : restored; })
   };
 };
 

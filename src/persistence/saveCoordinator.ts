@@ -2,6 +2,7 @@ import type { AppState } from "../app/Store";
 import type { SaveRepository } from "./persistenceTypes";
 import { createSaveSnapshot, restoreAppState } from "./saveSnapshot";
 import type { AppliedUnknownSproutExtension, ConsultationCheckpoint, PendingConsultation } from "../domain/consultation/unknownSproutConsultation";
+import type { PartnerProfileSnapshot, PendingPartnerConsultation } from "../domain/partner/partnerProfile";
 
 export type LoadResult = { state: AppState; available: boolean };
 
@@ -35,5 +36,8 @@ export class SaveCoordinator {
   }
   savePending(pending: PendingConsultation): Promise<void> { return this.exclusive(async () => { if (!this.repository.savePendingConsultation) throw new Error("相談を保存できません"); await this.repository.savePendingConsultation(pending); }); }
   apply(state: AppState, pending: PendingConsultation, extension: AppliedUnknownSproutExtension, checkpoint: ConsultationCheckpoint): Promise<void> { return this.exclusive(async () => { if (!this.repository.applyConsultation) throw new Error("相談を反映できません"); await this.repository.applyConsultation(createSaveSnapshot(state), pending, extension, checkpoint); }); }
+  savePendingPartner(pending: PendingPartnerConsultation): Promise<void> { return this.exclusive(async () => { if (!this.repository.savePendingPartner) throw new Error("相談を保存できません"); await this.repository.savePendingPartner(pending); }); }
+  discardPartner(pending: PendingPartnerConsultation): Promise<void> { return this.exclusive(async () => { if (!this.repository.discardPartnerConsultation) throw new Error("相談を破棄できません"); await this.repository.discardPartnerConsultation(pending); }); }
+  applyPartner(state: AppState, pending: PendingPartnerConsultation | null, next: PartnerProfileSnapshot, checkpoint: { checkpointId: string; createdAt: string }): Promise<void> { return this.exclusive(async () => { if (!this.repository.applyPartner) throw new Error("パートナー設定を保存できません"); await this.repository.applyPartner(createSaveSnapshot(state), pending, next, checkpoint); }); }
   private exclusive(task: () => Promise<void>): Promise<void> { const result = this.queue.then(task); this.queue = result.catch((error) => { console.error("相談データの保存に失敗しました", error); }); return result; }
 }
