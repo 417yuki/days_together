@@ -8,16 +8,16 @@ const character = (characterId: string, mapId: string, locationId: string) => ({
 
 describe("save snapshots", () => {
   it("extracts only the stable map and character fields", () => {
-    const snapshot = createSaveSnapshot({ ...initialState, activeNavigation: "settings", developerPanelOpen: true, message: "temporary", movements: { user: { path: [], nextIndex: 1, destination: { mapId: "starter_garden", locationId: "garden" } } } });
+    const snapshot = createSaveSnapshot({ ...initialState, itemDraft: { name: "途中の品", category: "gift", description: "まだ保存しない" }, activeNavigation: "settings", developerPanelOpen: true, message: "temporary", movements: { user: { path: [], nextIndex: 1, destination: { mapId: "starter_garden", locationId: "garden" } } } });
     expect(snapshot).toEqual(expect.objectContaining({ viewedMapId: "starter_house_interior", recentPartnerActionIds: [], worldStartedOn: initialState.worldStartedOn, unknownSprout: initialState.unknownSprout, unknownSproutExtension: null, characters: initialState.characters, partnerProfile: initialState.partnerProfile, partnerDialogues: initialState.partnerDialogues, items: initialState.items }));
-    expect(snapshot).not.toHaveProperty("itemView"); expect(snapshot).not.toHaveProperty("selectedItemId"); expect(snapshot).not.toHaveProperty("itemMessage"); expect(snapshot).not.toHaveProperty("movements"); expect(snapshot).not.toHaveProperty("message"); expect(snapshot).not.toHaveProperty("developerPanelOpen");
+    expect(snapshot).not.toHaveProperty("itemView"); expect(snapshot).not.toHaveProperty("selectedItemId"); expect(snapshot).not.toHaveProperty("itemMessage"); expect(snapshot).not.toHaveProperty("itemDraft"); expect(snapshot).not.toHaveProperty("movements"); expect(snapshot).not.toHaveProperty("message"); expect(snapshot).not.toHaveProperty("developerPanelOpen");
   });
 
   it("restores the viewed map and both valid character locations without transient state", () => {
     const saved: StoredSaveData = { worldState: { saveSlotId: "main", viewedMapId: "starter_garden" }, characters: [character("user", "starter_garden", "garden"), character("cody", "starter_garden", "shed")] };
-    const state = restoreAppState({ ...initialState, developerPanelOpen: true, activeNavigation: "items", movements: { cody: { path: [], nextIndex: 0, destination: { mapId: "starter_garden", locationId: "shed" } } } }, saved);
+    const state = restoreAppState({ ...initialState, itemDraft: { name: "途中", category: "gift", description: "破棄する" }, developerPanelOpen: true, activeNavigation: "items", movements: { cody: { path: [], nextIndex: 0, destination: { mapId: "starter_garden", locationId: "shed" } } } }, saved);
     expect(state.viewedMapId).toBe("starter_garden"); expect(state.characters.map(({ locationId }) => locationId)).toEqual(["garden", "shed"]);
-    expect(state.movements).toEqual({}); expect(state.developerPanelOpen).toBe(false); expect(state.activeNavigation).toBe("map");
+    expect(state.movements).toEqual({}); expect(state.developerPanelOpen).toBe(false); expect(state.activeNavigation).toBe("map"); expect(state.itemDraft).toEqual({ name: "", category: "food", description: "" });
   });
 
   it("falls back independently for invalid maps, locations, missing, duplicate, and unknown characters", () => {
