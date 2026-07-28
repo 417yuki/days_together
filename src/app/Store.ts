@@ -9,7 +9,7 @@ import { advanceUnknownSprout, initialUnknownSprout, localDate, makeUnknownSprou
 import type { AppliedUnknownSproutExtension, PendingConsultation, UnknownSproutConsultationResult } from "../domain/consultation/unknownSproutConsultation";
 import { codyPresetDialogues, codyPresetProfile, type PartnerDialogueLine, type PartnerGameProfile, type PartnerProfileSnapshot, type PartnerResult, type PendingPartnerConsultation } from "../domain/partner/partnerProfile";
 import { starterItems, type GameItem, type ItemCategory } from "../domain/items/items";
-import type { MapBackgroundId, MapVisualState } from "../domain/assets/mapBackgrounds";
+import { createDefaultMapVisual, type MapBackgroundId, type MapVisualState } from "../domain/assets/mapBackgrounds";
 import { DEFAULT_CHARACTER_PIN_VISUAL } from "../domain/characters/characterPinVisual";
 
 export type NavigationId = "map" | "items" | "memories" | "partner" | "settings";
@@ -22,7 +22,7 @@ export type ItemDraft = { name: string; category: ItemCategory; description: str
 export const createEmptyItemDraft = (): ItemDraft => ({ name: "", category: "food", description: "" });
 export type AppState = { mapVisuals: Record<MapBackgroundId, MapVisualState>; items: GameItem[]; itemView: ItemView; selectedItemId: string | null; itemMessage: string; itemDraft: ItemDraft; viewedMapId: MapId; activeNavigation: NavigationId; developerPanelOpen: boolean; characters: CharacterState[]; movements: Partial<Record<CharacterId, MovementState>>; partnerActivity: PartnerActivityState; partnerProfile: PartnerGameProfile; partnerDialogues: PartnerDialogueLine[]; partnerHistory: PartnerProfileSnapshot[]; pendingPartnerConsultation: PendingPartnerConsultation | null; partnerView: PartnerView; partnerResponse: string; partnerPreview: PartnerResult | null; selectedPartnerRevision: number | null; partnerMessage: string; unknownSprout: UnknownSproutState; unknownSproutExtension: AppliedUnknownSproutExtension | null; pendingConsultation: PendingConsultation | null; consultationView: ConsultationView; consultationResponse: string; consultationPreview: UnknownSproutConsultationResult | null; consultationMessage: string; worldStartedOn: string; openEventId: EventId | null; message: string; saveStatus: SaveStatus };
 export const initialState: AppState = {
-  mapVisuals: { starter_house_interior: { saveSlotId: "main", mapId: "starter_house_interior", backgroundAssetId: null, updatedAt: new Date(0).toISOString() }, starter_garden: { saveSlotId: "main", mapId: "starter_garden", backgroundAssetId: null, updatedAt: new Date(0).toISOString() } },
+  mapVisuals: { starter_house_interior: createDefaultMapVisual("starter_house_interior"), starter_garden: createDefaultMapVisual("starter_garden") },
   items: structuredClone(starterItems), itemView: "list", selectedItemId: null, itemMessage: "", itemDraft: createEmptyItemDraft(),
   viewedMapId: "starter_house_interior",
   activeNavigation: "map",

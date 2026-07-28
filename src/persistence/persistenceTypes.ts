@@ -66,4 +66,5 @@ export interface SaveRepository {
   getMapBackground?(assetId: string, mapId: MapBackgroundId): Promise<MapBackgroundAsset | null>;
   putMapBackground?(mapId: MapBackgroundId, asset: MapBackgroundAsset): Promise<MapVisualState>;
   deleteMapBackground?(mapId: MapBackgroundId): Promise<MapVisualState>;
+  putLocationLayout?(mapId: MapBackgroundId, layout: MapVisualState["locationLayout"]): Promise<MapVisualState>;
 }

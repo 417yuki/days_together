@@ -159,13 +159,19 @@ export class IndexedDbSaveRepository implements SaveRepository {
     await validateItemImage(new File([asset.blob], asset.metadata.originalName, { type: asset.metadata.mimeType }));
     if (!parseMapBackgroundMetadata(asset.metadata, mapId) || asset.blob.type !== asset.metadata.mimeType || asset.blob.size !== asset.metadata.byteSize) throw new Error("画像または対象マップを確認できません。");
     const db = await this.open(); const tx = db.transaction([STORE_NAMES.mapVisuals, STORE_NAMES.assets, STORE_NAMES.assetBlobs], "readwrite"); const visuals = tx.objectStore(STORE_NAMES.mapVisuals);
-    const previous = parseMapVisual(await request(visuals.get([MAIN_SAVE_SLOT_ID, mapId])), mapId).backgroundAssetId; const next = { saveSlotId: MAIN_SAVE_SLOT_ID, mapId, backgroundAssetId: asset.metadata.assetId, updatedAt: asset.metadata.updatedAt } satisfies MapVisualState;
+    const current = parseMapVisual(await request(visuals.get([MAIN_SAVE_SLOT_ID, mapId])), mapId); const previous = current.backgroundAssetId; const next = { ...current, backgroundAssetId: asset.metadata.assetId, updatedAt: asset.metadata.updatedAt } satisfies MapVisualState;
     tx.objectStore(STORE_NAMES.assets).put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...asset.metadata }); tx.objectStore(STORE_NAMES.assetBlobs).put({ saveSlotId: MAIN_SAVE_SLOT_ID, assetId: asset.metadata.assetId, blob: asset.blob }); visuals.put(next);
     if (previous) { tx.objectStore(STORE_NAMES.assets).delete([MAIN_SAVE_SLOT_ID, previous]); tx.objectStore(STORE_NAMES.assetBlobs).delete([MAIN_SAVE_SLOT_ID, previous]); } await transactionDone(tx); return next;
   }
 
   async deleteMapBackground(mapId: MapBackgroundId): Promise<MapVisualState> {
-    const db = await this.open(); const tx = db.transaction([STORE_NAMES.mapVisuals, STORE_NAMES.assets, STORE_NAMES.assetBlobs], "readwrite"); const visuals = tx.objectStore(STORE_NAMES.mapVisuals); const previous = parseMapVisual(await request(visuals.get([MAIN_SAVE_SLOT_ID, mapId])), mapId).backgroundAssetId; const next = { saveSlotId: MAIN_SAVE_SLOT_ID, mapId, backgroundAssetId: null, updatedAt: new Date().toISOString() } satisfies MapVisualState; visuals.put(next); if (previous) { tx.objectStore(STORE_NAMES.assets).delete([MAIN_SAVE_SLOT_ID, previous]); tx.objectStore(STORE_NAMES.assetBlobs).delete([MAIN_SAVE_SLOT_ID, previous]); } await transactionDone(tx); return next;
+    const db = await this.open(); const tx = db.transaction([STORE_NAMES.mapVisuals, STORE_NAMES.assets, STORE_NAMES.assetBlobs], "readwrite"); const visuals = tx.objectStore(STORE_NAMES.mapVisuals); const current = parseMapVisual(await request(visuals.get([MAIN_SAVE_SLOT_ID, mapId])), mapId); const previous = current.backgroundAssetId; const next = { ...current, backgroundAssetId: null, updatedAt: new Date().toISOString() } satisfies MapVisualState; visuals.put(next); if (previous) { tx.objectStore(STORE_NAMES.assets).delete([MAIN_SAVE_SLOT_ID, previous]); tx.objectStore(STORE_NAMES.assetBlobs).delete([MAIN_SAVE_SLOT_ID, previous]); } await transactionDone(tx); return next;
+  }
+
+  async putLocationLayout(mapId: MapBackgroundId, layout: MapVisualState["locationLayout"]): Promise<MapVisualState> {
+    const db = await this.open(); const tx = db.transaction(STORE_NAMES.mapVisuals, "readwrite"); const store = tx.objectStore(STORE_NAMES.mapVisuals);
+    const current = parseMapVisual(await request(store.get([MAIN_SAVE_SLOT_ID, mapId])), mapId);
+    const next = parseMapVisual({ ...current, locationLayout: layout, updatedAt: new Date().toISOString() }, mapId); store.put(next); await transactionDone(tx); return next;
   }
 
   private open(): Promise<IDBDatabase> {

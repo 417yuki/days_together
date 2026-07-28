@@ -55,5 +55,6 @@ export class SaveCoordinator {
   getMapBackground(assetId: string, mapId: MapBackgroundId) { return this.repository.getMapBackground?.(assetId, mapId) ?? Promise.resolve(null); }
   putMapBackground(mapId: MapBackgroundId, asset: MapBackgroundAsset) { return this.exclusive(async () => { if (!this.repository.putMapBackground) throw new Error("背景を保存できません"); return this.repository.putMapBackground(mapId, asset); }); }
   deleteMapBackground(mapId: MapBackgroundId) { return this.exclusive(async () => { if (!this.repository.deleteMapBackground) throw new Error("背景を削除できません"); return this.repository.deleteMapBackground(mapId); }); }
+  putLocationLayout(mapId: MapBackgroundId, layout: import("../domain/maps/locationLayout").LocationLayout) { return this.exclusive(async () => { if (!this.repository.putLocationLayout) throw new Error("地点配置を保存できません"); return this.repository.putLocationLayout(mapId, layout); }); }
   private exclusive<T>(task: () => Promise<T>): Promise<T> { const result = this.queue.then(task); this.queue = result.then(() => undefined).catch((error) => { console.error("排他データの保存に失敗しました", error); }); return result; }
 }
