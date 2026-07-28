@@ -1,6 +1,7 @@
 import type { AppState } from "../app/Store";
 import type { SaveRepository } from "./persistenceTypes";
 import { createSaveSnapshot, restoreAppState } from "./saveSnapshot";
+import type { AppliedUnknownSproutExtension, ConsultationCheckpoint, PendingConsultation } from "../domain/consultation/unknownSproutConsultation";
 
 export type LoadResult = { state: AppState; available: boolean };
 
@@ -32,4 +33,7 @@ export class SaveCoordinator {
     });
     return this.queue;
   }
+  savePending(pending: PendingConsultation): Promise<void> { return this.exclusive(async () => { if (!this.repository.savePendingConsultation) throw new Error("相談を保存できません"); await this.repository.savePendingConsultation(pending); }); }
+  apply(state: AppState, pending: PendingConsultation, extension: AppliedUnknownSproutExtension, checkpoint: ConsultationCheckpoint): Promise<void> { return this.exclusive(async () => { if (!this.repository.applyConsultation) throw new Error("相談を反映できません"); await this.repository.applyConsultation(createSaveSnapshot(state), pending, extension, checkpoint); }); }
+  private exclusive(task: () => Promise<void>): Promise<void> { const result = this.queue.then(task); this.queue = result.catch((error) => { console.error("相談データの保存に失敗しました", error); }); return result; }
 }

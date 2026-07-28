@@ -5,6 +5,7 @@ import type { MapId } from "../domain/maps/mapTypes";
 import { MAIN_SAVE_SLOT_ID, type SaveSnapshot, type StoredSaveData } from "./persistenceTypes";
 import { actionIds, type ActionId } from "../domain/partner/partnerActions";
 import { initialUnknownSprout, normalizeLocalDate, parseUnknownSprout } from "../domain/events/unknownSprout";
+import { parseAppliedExtension, parsePendingConsultation } from "../domain/consultation/unknownSproutConsultation";
 
 const characterIds: CharacterId[] = ["user", "cody"];
 const mapIds = new Set<MapId>(starterMaps.map(({ mapId }) => mapId));
@@ -14,6 +15,7 @@ export const createSaveSnapshot = (state: AppState): SaveSnapshot => ({
   recentPartnerActionIds: state.partnerActivity.recentActionIds.slice(0, 5),
   worldStartedOn: state.worldStartedOn,
   unknownSprout: structuredClone(state.unknownSprout),
+  unknownSproutExtension: structuredClone(state.unknownSproutExtension),
   characters: state.characters.map(({ characterId, name, marker, mapId, locationId }) => ({ characterId, name, marker, mapId, locationId }))
 });
 
@@ -25,6 +27,9 @@ export const restoreAppState = (initial: AppState, saved: StoredSaveData, now = 
   const duplicates = new Set<CharacterId>();
   const eventCandidates = (saved.events ?? []).filter((value) => record(value)?.eventId === "unknown_sprout");
   const unknownSprout = eventCandidates.length === 1 && record(eventCandidates[0])?.saveSlotId === MAIN_SAVE_SLOT_ID ? parseUnknownSprout(eventCandidates[0]) ?? initialUnknownSprout() : initialUnknownSprout();
+  const extension = eventCandidates.length === 1 ? parseAppliedExtension(record(eventCandidates[0])?.extension) : null;
+  const pendingCandidates = (saved.consultations ?? []).map(parsePendingConsultation).filter((value): value is NonNullable<typeof value> => value !== null);
+  const pendingConsultation = !extension && pendingCandidates.length === 1 && unknownSprout.status === "completed" && pendingCandidates[0].expectedPath === unknownSprout.path ? pendingCandidates[0] : null;
 
   saved.characters.forEach((value) => {
     const candidate = parseCharacter(value);
@@ -43,6 +48,9 @@ export const restoreAppState = (initial: AppState, saved: StoredSaveData, now = 
     openEventId: null,
     worldStartedOn: normalizeLocalDate(world?.worldStartedOn, now),
     unknownSprout,
+    unknownSproutExtension: extension,
+    pendingConsultation,
+    consultationView: "closed", consultationResponse: "", consultationPreview: null, consultationMessage: "",
     partnerActivity: { ...initial.partnerActivity, enabled: true, phase: "idle", actionId: null, destination: null, lineId: null, recentActionIds, lastDecision: null },
     characters: initial.characters.map((fallback) => validCharacters.get(fallback.characterId) ?? { ...fallback })
   };

@@ -6,16 +6,18 @@ import { advanceMovement, buildLocationGraph, startMovement, type MovementState 
 import { starterMaps } from "../data/starterMaps";
 import type { ActionDecisionDebug, ActionId } from "../domain/partner/partnerActions";
 import { advanceUnknownSprout, initialUnknownSprout, localDate, makeUnknownSproutAvailable, releaseUnknownSprout, type EventId, type UnknownSproutChoiceId, type UnknownSproutState } from "../domain/events/unknownSprout";
+import type { AppliedUnknownSproutExtension, PendingConsultation, UnknownSproutConsultationResult } from "../domain/consultation/unknownSproutConsultation";
 
 export type NavigationId = "map" | "items" | "memories" | "partner" | "settings";
 export type SaveStatus = "available" | "failed";
 export type PartnerActivityState = { enabled: boolean; phase: "idle" | "moving" | "acting"; actionId: ActionId | null; destination: LocationRef | null; lineId: string | null; recentActionIds: ActionId[]; lastDecision: ActionDecisionDebug | null };
-export type AppState = { viewedMapId: MapId; activeNavigation: NavigationId; developerPanelOpen: boolean; characters: CharacterState[]; movements: Partial<Record<CharacterId, MovementState>>; partnerActivity: PartnerActivityState; unknownSprout: UnknownSproutState; worldStartedOn: string; openEventId: EventId | null; message: string; saveStatus: SaveStatus };
+export type ConsultationView = "closed" | "compose" | "confirm";
+export type AppState = { viewedMapId: MapId; activeNavigation: NavigationId; developerPanelOpen: boolean; characters: CharacterState[]; movements: Partial<Record<CharacterId, MovementState>>; partnerActivity: PartnerActivityState; unknownSprout: UnknownSproutState; unknownSproutExtension: AppliedUnknownSproutExtension | null; pendingConsultation: PendingConsultation | null; consultationView: ConsultationView; consultationResponse: string; consultationPreview: UnknownSproutConsultationResult | null; consultationMessage: string; worldStartedOn: string; openEventId: EventId | null; message: string; saveStatus: SaveStatus };
 export const initialState: AppState = {
   viewedMapId: "starter_house_interior",
   activeNavigation: "map",
   developerPanelOpen: false,
-  unknownSprout: initialUnknownSprout(), worldStartedOn: localDate(new Date()), openEventId: null,
+  unknownSprout: initialUnknownSprout(), unknownSproutExtension: null, pendingConsultation: null, consultationView: "closed", consultationResponse: "", consultationPreview: null, consultationMessage: "", worldStartedOn: localDate(new Date()), openEventId: null,
   movements: {}, partnerActivity: { enabled: true, phase: "idle", actionId: null, destination: null, lineId: null, recentActionIds: [], lastDecision: null }, message: "場所を選んでみましょう", saveStatus: "available", characters: [
     { characterId: "user", name: "主人公", marker: "U", mapId: "starter_house_interior", locationId: "table" },
     { characterId: "cody", name: "コーディ", marker: "C", mapId: "starter_house_interior", locationId: "workbench" }
@@ -40,7 +42,8 @@ export class Store {
   advanceEvent(choice: UnknownSproutChoiceId): boolean { const next = advanceUnknownSprout(this.state.unknownSprout, choice); if (!next) return false; this.update({ unknownSprout: next, message: next.status === "completed" ? "庭に小さな花が咲きました。" : "知らない芽の様子が変わりました。" }); return true; }
   checkEvents(now = new Date()): void { const next = releaseUnknownSprout(this.state.unknownSprout, this.state.worldStartedOn, now); if (next !== this.state.unknownSprout) this.update({ unknownSprout: next, message: "庭に知らない芽が現れました。" }); }
   triggerEvent(): void { if (this.state.unknownSprout.status === "locked") this.update({ unknownSprout: makeUnknownSproutAvailable(), message: "庭に知らない芽が現れました。" }); }
-  resetEvent(now = new Date()): void { this.update({ unknownSprout: initialUnknownSprout(), worldStartedOn: localDate(now), openEventId: null, message: "知らない芽を初期状態へ戻しました。" }); }
+  resetEvent(now = new Date()): void { this.update({ unknownSprout: initialUnknownSprout(), unknownSproutExtension: null, pendingConsultation: null, consultationView: "closed", consultationResponse: "", consultationPreview: null, consultationMessage: "", worldStartedOn: localDate(now), openEventId: null, message: "知らない芽を初期状態へ戻しました。" }); }
+  setConsultation(next: Partial<Pick<AppState, "pendingConsultation" | "consultationView" | "consultationResponse" | "consultationPreview" | "consultationMessage" | "unknownSproutExtension">>): void { this.update(next); }
   stopCharacterMovement(characterId: CharacterId): void { const movements = { ...this.state.movements }; delete movements[characterId]; this.update({ movements }); }
   beginMovement(characterId: CharacterId, destination: LocationRef): "started" | "busy" | "invalid" | "same" {
     if (this.state.movements[characterId]) { this.update({ message: "移動中です" }); return "busy"; }
@@ -62,5 +65,5 @@ export class Store {
 
 const cloneActivity = (activity: PartnerActivityState): PartnerActivityState => ({ ...activity, destination: activity.destination && { ...activity.destination }, recentActionIds: [...activity.recentActionIds], lastDecision: activity.lastDecision && { ...activity.lastDecision, candidates: activity.lastDecision.candidates.map((candidate) => ({ ...candidate, destination: { ...candidate.destination } })), selectedDestination: { ...activity.lastDecision.selectedDestination } } });
 const cloneInitialState = (): AppState => ({ ...initialState, characters: initialState.characters.map((character) => ({ ...character })), movements: {}, partnerActivity: cloneActivity(initialState.partnerActivity), unknownSprout: structuredClone(initialState.unknownSprout) });
-const cloneState = (state: AppState): AppState => ({ ...state, characters: state.characters.map((character) => ({ ...character })), movements: { ...state.movements }, partnerActivity: cloneActivity(state.partnerActivity), unknownSprout: structuredClone(state.unknownSprout) });
+const cloneState = (state: AppState): AppState => structuredClone({ ...state, characters: state.characters.map((character) => ({ ...character })), movements: { ...state.movements }, partnerActivity: cloneActivity(state.partnerActivity), unknownSprout: structuredClone(state.unknownSprout) });
 const locationLabel = ({ mapId, locationId }: LocationRef): string => starterMaps.find((map) => map.mapId === mapId)?.locations.find((location) => location.locationId === locationId)?.label ?? "不明な場所";
