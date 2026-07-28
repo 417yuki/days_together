@@ -3,6 +3,7 @@ import type { CharacterState } from "../../domain/characters/characterTypes";
 import { selectCharactersOnMap, selectProxyCharacters } from "../../domain/maps/mapSelectors";
 import type { LocationDefinition, MapDefinition, MapId } from "../../domain/maps/mapTypes";
 import { unknownSproutDefinition, type UnknownSproutState } from "../../domain/events/unknownSprout";
+import { characterPinStyle, normalizeCharacterPinVisual } from "../../domain/characters/characterPinVisual";
 
 type MapViewOptions = {
   map: MapDefinition;
@@ -43,7 +44,7 @@ export const MapView = ({ map, characters, characterImages = {}, backgroundUrl, 
   const proxies = selectProxyCharacters(characters, map);
   if (proxies.length > 0) {
     const residents = document.createElement("button"); residents.type = "button"; residents.className = "residents-pin"; positionAt(residents, proxies[0].location);
-    const markers = document.createElement("strong"); proxies.forEach(({ character }) => { const url = characterImages[character.characterId]; if (url) { const image = document.createElement("img"); image.src = url; image.alt = ""; markers.append(image); } else markers.append(document.createTextNode(character.marker)); });
+    const markers = document.createElement("strong"); proxies.forEach(({ character }) => { const url = characterImages[character.characterId]; if (url) { const image = document.createElement("img"); image.src = url; image.alt = ""; const safe = normalizeCharacterPinVisual(character.pinVisual); image.style.objectPosition = `${safe.objectPositionX}% ${safe.objectPositionY}%`; markers.append(image); } else markers.append(document.createTextNode(character.marker)); });
     const description = document.createElement("span"); description.textContent = `${proxies.map(({ character }) => character.name).join("と")}は別のマップにいます`;
     residents.append(markers, description); residents.dataset.focusKey = `residents-${map.mapId}`; residents.setAttribute("aria-label", `${description.textContent}。居場所を確認`); residents.addEventListener("click", () => onResidents(residents)); canvas.append(residents);
   }
@@ -57,6 +58,6 @@ const positionAt = (element: HTMLElement, location: LocationDefinition): void =>
 };
 
 const character = (state: CharacterState, location: LocationDefinition, imageUrl?: string): HTMLElement => {
-  const pin = document.createElement("div"); pin.className = "character-pin"; positionAt(pin, location); if (imageUrl) { const image = document.createElement("img"); image.src = imageUrl; image.alt = ""; pin.append(image); } else pin.textContent = state.marker;
+  const pin = document.createElement("div"); pin.className = "character-pin"; positionAt(pin, location); if (imageUrl) { const image = document.createElement("img"); image.src = imageUrl; image.alt = ""; const style = characterPinStyle(state.pinVisual); pin.style.width = style.width; pin.style.height = style.height; pin.style.transform = style.transform; image.style.objectPosition = style.objectPosition; pin.append(image); } else pin.textContent = state.marker;
   const label = `${state.name}：${location.label}`; pin.setAttribute("role", "img"); pin.setAttribute("aria-label", label); pin.title = label; return pin;
 };

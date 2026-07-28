@@ -38,6 +38,14 @@ describe("save snapshots", () => {
     expect(state.characters[1]).toEqual(expect.objectContaining({ mapId: "starter_garden", locationId: "garden" }));
   });
 
+  it("adds defaults to DB7 characters without visuals and repairs fields independently", () => {
+    const user = { ...character("user", "starter_garden", "garden"), pinVisual: { anchorX: 10, anchorY: 101, scale: 1.25, objectPositionX: "bad", objectPositionY: 80 } };
+    const state = restoreAppState(initialState, { worldState: {}, characters: [user, character("cody", "starter_garden", "shed")] });
+    expect(state.characters[0].pinVisual).toEqual({ anchorX: 10, anchorY: 100, scale: 1.25, objectPositionX: 50, objectPositionY: 80 });
+    expect(state.characters[1].pinVisual).toEqual({ anchorX: 50, anchorY: 100, scale: 1, objectPositionX: 50, objectPositionY: 50 });
+    expect(state.characters[0]).toEqual(expect.objectContaining({ mapId: "starter_garden", locationId: "garden", name: "主人公", marker: "U" }));
+  });
+
   it("restores a safe character image reference and repairs only an invalid reference", () => {
     const user = { ...character("user", "starter_garden", "garden"), imageAssetId: "pin-user" };
     const cody = { ...character("cody", "starter_garden", "shed"), imageAssetId: "bad\u0000ref" };

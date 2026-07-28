@@ -1,4 +1,5 @@
 import type { MapId } from "../maps/mapTypes";
+import type { CharacterPinVisual } from "./characterPinVisual";
 
 export type CharacterId = "user" | "cody";
 
@@ -9,4 +10,5 @@ export type CharacterState = {
   mapId: MapId;
   locationId: string;
   imageAssetId: string | null;
+  pinVisual: CharacterPinVisual;
 };

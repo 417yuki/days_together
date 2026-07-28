@@ -25,7 +25,7 @@ export type SaveSnapshot = {
   worldStartedOn: string;
   unknownSprout: UnknownSproutState;
   unknownSproutExtension: AppliedUnknownSproutExtension | null;
-  characters: Array<Pick<CharacterState, "characterId" | "name" | "marker" | "mapId" | "locationId" | "imageAssetId">>;
+  characters: Array<Pick<CharacterState, "characterId" | "name" | "marker" | "mapId" | "locationId" | "imageAssetId" | "pinVisual">>;
   partnerProfile: PartnerGameProfile; partnerDialogues: PartnerDialogueLine[]; items: GameItem[];
 };
 
@@ -45,6 +45,7 @@ export type CharacterRecord = {
   mapId: MapId;
   locationId: string;
   imageAssetId: string | null;
+  pinVisual: CharacterState["pinVisual"];
 };
 
 export interface SaveRepository {
@@ -61,6 +62,7 @@ export interface SaveRepository {
   getCharacterPin?(assetId: string, characterId: CharacterId): Promise<CharacterPinAsset | null>;
   putCharacterPin?(characterId: CharacterId, asset: CharacterPinAsset): Promise<CharacterState>;
   deleteCharacterPin?(characterId: CharacterId): Promise<CharacterState>;
+  putCharacterPinVisual?(characterId: CharacterId, visual: CharacterState["pinVisual"]): Promise<CharacterState>;
   getMapBackground?(assetId: string, mapId: MapBackgroundId): Promise<MapBackgroundAsset | null>;
   putMapBackground?(mapId: MapBackgroundId, asset: MapBackgroundAsset): Promise<MapVisualState>;
   deleteMapBackground?(mapId: MapBackgroundId): Promise<MapVisualState>;

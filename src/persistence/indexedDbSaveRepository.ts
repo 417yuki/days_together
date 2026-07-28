@@ -3,6 +3,7 @@ import { codyPresetDialogues, codyPresetProfile, type PartnerDialogueLine } from
 import { parseAssetMetadata, validateItemImage, type ItemImageAsset } from "../domain/assets/itemImages";
 import { parseItem, type GameItem } from "../domain/items/items";
 import { parseCharacterPinMetadata, type CharacterPinAsset } from "../domain/assets/characterPins";
+import { normalizeCharacterPinVisual, type CharacterPinVisual } from "../domain/characters/characterPinVisual";
 import type { CharacterId, CharacterState } from "../domain/characters/characterTypes";
 import { parseMapBackgroundMetadata, parseMapVisual, type MapBackgroundAsset, type MapBackgroundId, type MapVisualState } from "../domain/assets/mapBackgrounds";
 
@@ -131,6 +132,19 @@ export class IndexedDbSaveRepository implements SaveRepository {
   async deleteCharacterPin(characterId: CharacterId): Promise<CharacterState> {
     const db = await this.open(); const transaction = db.transaction([STORE_NAMES.characters, STORE_NAMES.assets, STORE_NAMES.assetBlobs], "readwrite"); const characters = transaction.objectStore(STORE_NAMES.characters); const raw = await request<Record<string, unknown> | undefined>(characters.get([MAIN_SAVE_SLOT_ID, characterId])); if (!raw) { transaction.abort(); throw new Error("対象人物を確認できません。"); }
     const previous = typeof raw.imageAssetId === "string" ? raw.imageAssetId : null; const updated: Record<string, unknown> = { ...raw, imageAssetId: null }; characters.put(updated); if (previous) { transaction.objectStore(STORE_NAMES.assets).delete([MAIN_SAVE_SLOT_ID, previous]); transaction.objectStore(STORE_NAMES.assetBlobs).delete([MAIN_SAVE_SLOT_ID, previous]); } await transactionDone(transaction); const { saveSlotId: _, ...character } = updated; return character as CharacterState;
+  }
+
+  async putCharacterPinVisual(characterId: CharacterId, visual: CharacterPinVisual): Promise<CharacterState> {
+    const db = await this.open();
+    const transaction = db.transaction(STORE_NAMES.characters, "readwrite");
+    const store = transaction.objectStore(STORE_NAMES.characters);
+    const raw = await request<Record<string, unknown> | undefined>(store.get([MAIN_SAVE_SLOT_ID, characterId]));
+    if (!raw) { transaction.abort(); throw new Error("対象人物を確認できません。"); }
+    const updated: Record<string, unknown> = { ...raw, pinVisual: normalizeCharacterPinVisual(visual) };
+    store.put(updated);
+    await transactionDone(transaction);
+    const { saveSlotId: _, ...character } = updated;
+    return character as CharacterState;
   }
 
   async getMapBackground(assetId: string, mapId: MapBackgroundId): Promise<MapBackgroundAsset | null> {
