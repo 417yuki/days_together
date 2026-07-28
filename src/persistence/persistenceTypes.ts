@@ -5,15 +5,16 @@ import type { UnknownSproutState } from "../domain/events/unknownSprout";
 import type { AppliedUnknownSproutExtension, ConsultationCheckpoint, PendingConsultation } from "../domain/consultation/unknownSproutConsultation";
 import type { PartnerDialogueLine, PartnerGameProfile, PartnerProfileSnapshot, PendingPartnerConsultation } from "../domain/partner/partnerProfile";
 import type { GameItem } from "../domain/items/items";
+import type { ItemImageAsset } from "../domain/assets/itemImages";
 
 export const DB_NAME = "futari-biyori";
-export const DB_VERSION = 5;
+export const DB_VERSION = 6;
 export const MAIN_SAVE_SLOT_ID = "main";
 export const STORE_NAMES = {
   appMeta: "appMeta",
   saveSlots: "saveSlots",
   worldStates: "worldStates",
-  characters: "characters", events: "events", consultations: "consultations", checkpoints: "checkpoints", partnerProfiles: "partnerProfiles", partnerProfileHistory: "partnerProfileHistory", dialogues: "dialogues", items: "items"
+  characters: "characters", events: "events", consultations: "consultations", checkpoints: "checkpoints", partnerProfiles: "partnerProfiles", partnerProfileHistory: "partnerProfileHistory", dialogues: "dialogues", items: "items", assets: "assets", assetBlobs: "assetBlobs"
 } as const;
 
 export type SaveSnapshot = {
@@ -51,4 +52,7 @@ export interface SaveRepository {
   savePendingPartner?(pending: PendingPartnerConsultation): Promise<void>;
   discardPartnerConsultation?(pending: PendingPartnerConsultation): Promise<void>;
   applyPartner?(snapshot: SaveSnapshot, pending: PendingPartnerConsultation | null, next: PartnerProfileSnapshot, checkpoint: unknown): Promise<void>;
+  getItemImage?(assetId: string): Promise<ItemImageAsset | null>;
+  putItemImage?(itemId: string, asset: ItemImageAsset): Promise<GameItem>;
+  deleteItemImage?(itemId: string): Promise<GameItem>;
 }

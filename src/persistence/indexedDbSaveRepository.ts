@@ -1,5 +1,7 @@
 import { DB_NAME, DB_VERSION, MAIN_SAVE_SLOT_ID, STORE_NAMES, type CharacterRecord, type SaveRepository, type SaveSnapshot, type StoredSaveData } from "./persistenceTypes";
 import { codyPresetDialogues, codyPresetProfile, type PartnerDialogueLine } from "../domain/partner/partnerProfile";
+import { parseAssetMetadata, validateItemImage, type ItemImageAsset } from "../domain/assets/itemImages";
+import { parseItem, type GameItem } from "../domain/items/items";
 
 export class IndexedDbSaveRepository implements SaveRepository {
   private database: Promise<IDBDatabase> | undefined;
@@ -29,7 +31,7 @@ export class IndexedDbSaveRepository implements SaveRepository {
     const now = new Date().toISOString();
     const slots = transaction.objectStore(STORE_NAMES.saveSlots);
     const existing = await request<Record<string, unknown> | undefined>(slots.get(MAIN_SAVE_SLOT_ID));
-    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 5, updatedAt: now });
+    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 6, updatedAt: now });
     slots.put({ saveSlotId: MAIN_SAVE_SLOT_ID, createdAt: typeof existing?.createdAt === "string" ? existing.createdAt : now, updatedAt: now });
     transaction.objectStore(STORE_NAMES.worldStates).put({ saveSlotId: MAIN_SAVE_SLOT_ID, viewedMapId: snapshot.viewedMapId, recentPartnerActionIds: snapshot.recentPartnerActionIds, worldStartedOn: snapshot.worldStartedOn });
     const characters = transaction.objectStore(STORE_NAMES.characters);
@@ -58,7 +60,7 @@ export class IndexedDbSaveRepository implements SaveRepository {
     const now = new Date().toISOString();
     const slots = transaction.objectStore(STORE_NAMES.saveSlots);
     const existingSlot = await request<Record<string, unknown> | undefined>(slots.get(MAIN_SAVE_SLOT_ID));
-    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 5, updatedAt: now });
+    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 6, updatedAt: now });
     slots.put({ saveSlotId: MAIN_SAVE_SLOT_ID, createdAt: typeof existingSlot?.createdAt === "string" ? existingSlot.createdAt : now, updatedAt: now });
     transaction.objectStore(STORE_NAMES.partnerProfiles).put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...next.profile });
     transaction.objectStore(STORE_NAMES.partnerProfileHistory).put({ saveSlotId: MAIN_SAVE_SLOT_ID, profileId: "main_partner", revision: next.profile.revision, ...next });
@@ -70,6 +72,43 @@ export class IndexedDbSaveRepository implements SaveRepository {
   }
 
   async applyConsultation(snapshot: import("./persistenceTypes").SaveSnapshot, pending: import("../domain/consultation/unknownSproutConsultation").PendingConsultation, extension: import("../domain/consultation/unknownSproutConsultation").AppliedUnknownSproutExtension, checkpoint: import("../domain/consultation/unknownSproutConsultation").ConsultationCheckpoint): Promise<void> { const db = await this.open(); const transaction = db.transaction([STORE_NAMES.events, STORE_NAMES.consultations, STORE_NAMES.checkpoints], "readwrite"); transaction.objectStore(STORE_NAMES.checkpoints).put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...checkpoint }); transaction.objectStore(STORE_NAMES.events).put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...snapshot.unknownSprout, extension }); transaction.objectStore(STORE_NAMES.consultations).delete([MAIN_SAVE_SLOT_ID, pending.requestId]); await transactionDone(transaction); }
+
+  async getItemImage(assetId: string): Promise<ItemImageAsset | null> {
+    const db = await this.open();
+    const transaction = db.transaction([STORE_NAMES.assets, STORE_NAMES.assetBlobs], "readonly");
+    const [rawMetadata, rawBlob] = await Promise.all([request(transaction.objectStore(STORE_NAMES.assets).get([MAIN_SAVE_SLOT_ID, assetId])), request(transaction.objectStore(STORE_NAMES.assetBlobs).get([MAIN_SAVE_SLOT_ID, assetId]))]);
+    await transactionDone(transaction);
+    const metadata = parseAssetMetadata(rawMetadata);
+    const blob = rawBlob && typeof rawBlob === "object" ? (rawBlob as { blob?: unknown }).blob : null;
+    if (!metadata || !(blob instanceof Blob) || blob.type !== metadata.mimeType || blob.size !== metadata.byteSize) return null;
+    try { await validateItemImage(new File([blob], metadata.originalName, { type: metadata.mimeType })); } catch { return null; }
+    return { metadata, blob };
+  }
+
+  async putItemImage(itemId: string, asset: ItemImageAsset): Promise<GameItem> {
+    await validateItemImage(new File([asset.blob], asset.metadata.originalName, { type: asset.metadata.mimeType }));
+    const db = await this.open();
+    const transaction = db.transaction([STORE_NAMES.items, STORE_NAMES.assets, STORE_NAMES.assetBlobs], "readwrite");
+    const items = transaction.objectStore(STORE_NAMES.items);
+    const raw = await request(items.get([MAIN_SAVE_SLOT_ID, itemId]));
+    const item = parseItem(raw);
+    if (!item || asset.metadata.ownerId !== itemId || !parseAssetMetadata(asset.metadata) || asset.blob.type !== asset.metadata.mimeType || asset.blob.size !== asset.metadata.byteSize) { transaction.abort(); throw new Error("画像または対象アイテムを確認できません。"); }
+    const previous = item.visual.imageAssetId;
+    const updated = { ...item, visual: { ...item.visual, imageAssetId: asset.metadata.assetId }, updatedAt: asset.metadata.updatedAt };
+    transaction.objectStore(STORE_NAMES.assets).put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...asset.metadata });
+    transaction.objectStore(STORE_NAMES.assetBlobs).put({ saveSlotId: MAIN_SAVE_SLOT_ID, assetId: asset.metadata.assetId, blob: asset.blob });
+    items.put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...updated });
+    if (previous) { transaction.objectStore(STORE_NAMES.assets).delete([MAIN_SAVE_SLOT_ID, previous]); transaction.objectStore(STORE_NAMES.assetBlobs).delete([MAIN_SAVE_SLOT_ID, previous]); }
+    await transactionDone(transaction); return updated;
+  }
+
+  async deleteItemImage(itemId: string): Promise<GameItem> {
+    const db = await this.open(); const transaction = db.transaction([STORE_NAMES.items, STORE_NAMES.assets, STORE_NAMES.assetBlobs], "readwrite"); const items = transaction.objectStore(STORE_NAMES.items);
+    const item = parseItem(await request(items.get([MAIN_SAVE_SLOT_ID, itemId]))); if (!item) { transaction.abort(); throw new Error("対象アイテムを確認できません。"); }
+    const previous = item.visual.imageAssetId; const updated = { ...item, visual: { ...item.visual, imageAssetId: null }, updatedAt: new Date().toISOString() }; items.put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...updated });
+    if (previous) { transaction.objectStore(STORE_NAMES.assets).delete([MAIN_SAVE_SLOT_ID, previous]); transaction.objectStore(STORE_NAMES.assetBlobs).delete([MAIN_SAVE_SLOT_ID, previous]); }
+    await transactionDone(transaction); return updated;
+  }
 
   private open(): Promise<IDBDatabase> {
     if (this.database) return this.database;
@@ -88,6 +127,8 @@ export class IndexedDbSaveRepository implements SaveRepository {
         if (!db.objectStoreNames.contains(STORE_NAMES.partnerProfileHistory)) db.createObjectStore(STORE_NAMES.partnerProfileHistory, { keyPath: ["saveSlotId", "profileId", "revision"] });
         if (!db.objectStoreNames.contains(STORE_NAMES.dialogues)) db.createObjectStore(STORE_NAMES.dialogues, { keyPath: ["saveSlotId", "profileId", "dialogueId"] });
         if (!db.objectStoreNames.contains(STORE_NAMES.items)) db.createObjectStore(STORE_NAMES.items, { keyPath: ["saveSlotId", "itemId"] });
+        if (!db.objectStoreNames.contains(STORE_NAMES.assets)) db.createObjectStore(STORE_NAMES.assets, { keyPath: ["saveSlotId", "assetId"] });
+        if (!db.objectStoreNames.contains(STORE_NAMES.assetBlobs)) db.createObjectStore(STORE_NAMES.assetBlobs, { keyPath: ["saveSlotId", "assetId"] });
       };
       openRequest.onerror = () => reject(openRequest.error ?? new Error("IndexedDBを開けませんでした"));
       openRequest.onblocked = () => reject(new Error("IndexedDBの更新がブロックされました"));
