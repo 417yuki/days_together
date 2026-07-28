@@ -3,7 +3,7 @@ export type ItemImageMimeType = typeof ITEM_IMAGE_MIME_TYPES[number];
 export const MAX_ITEM_IMAGE_BYTES = 10 * 1024 * 1024;
 export const MAX_ORIGINAL_NAME_LENGTH = 120;
 
-export type AssetKind = "item_image" | "character_pin";
+export type AssetKind = "item_image" | "character_pin" | "map_background";
 export type AssetMetadata = { assetId: string; kind: AssetKind; ownerId: string; mimeType: ItemImageMimeType; byteSize: number; originalName: string; createdAt: string; updatedAt: string };
 export type AssetBlobRecord = { assetId: string; blob: Blob };
 export type ItemImageAsset = { metadata: AssetMetadata; blob: Blob };
@@ -31,6 +31,6 @@ export const validateItemImage = async (file: File): Promise<ItemImageMimeType> 
 export const parseAssetMetadata = (value: unknown, expectedKind?: AssetKind): AssetMetadata | null => {
   if (!value || typeof value !== "object") return null;
   const v = value as Record<string, unknown>;
-  if (!isSafeAssetId(v.assetId) || !["item_image", "character_pin"].includes(v.kind as string) || (expectedKind && v.kind !== expectedKind) || !isSafeAssetId(v.ownerId) || !ITEM_IMAGE_MIME_TYPES.includes(v.mimeType as ItemImageMimeType) || typeof v.byteSize !== "number" || v.byteSize < 1 || v.byteSize > MAX_ITEM_IMAGE_BYTES || typeof v.originalName !== "string" || !v.originalName || v.originalName.length > MAX_ORIGINAL_NAME_LENGTH || control.test(v.originalName) || typeof v.createdAt !== "string" || !Number.isFinite(Date.parse(v.createdAt)) || typeof v.updatedAt !== "string" || !Number.isFinite(Date.parse(v.updatedAt))) return null;
+  if (!isSafeAssetId(v.assetId) || !["item_image", "character_pin", "map_background"].includes(v.kind as string) || (expectedKind && v.kind !== expectedKind) || !isSafeAssetId(v.ownerId) || !ITEM_IMAGE_MIME_TYPES.includes(v.mimeType as ItemImageMimeType) || typeof v.byteSize !== "number" || v.byteSize < 1 || v.byteSize > MAX_ITEM_IMAGE_BYTES || typeof v.originalName !== "string" || !v.originalName || v.originalName.length > MAX_ORIGINAL_NAME_LENGTH || control.test(v.originalName) || typeof v.createdAt !== "string" || !Number.isFinite(Date.parse(v.createdAt)) || typeof v.updatedAt !== "string" || !Number.isFinite(Date.parse(v.updatedAt))) return null;
   return v as AssetMetadata;
 };

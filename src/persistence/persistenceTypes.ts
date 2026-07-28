@@ -7,12 +7,13 @@ import type { PartnerDialogueLine, PartnerGameProfile, PartnerProfileSnapshot, P
 import type { GameItem } from "../domain/items/items";
 import type { CharacterPinAsset } from "../domain/assets/characterPins";
 import type { ItemImageAsset } from "../domain/assets/itemImages";
+import type { MapBackgroundAsset, MapBackgroundId, MapVisualState } from "../domain/assets/mapBackgrounds";
 
 export const DB_NAME = "futari-biyori";
-export const DB_VERSION = 6;
+export const DB_VERSION = 7;
 export const MAIN_SAVE_SLOT_ID = "main";
 export const STORE_NAMES = {
-  appMeta: "appMeta",
+  appMeta: "appMeta", mapVisuals: "mapVisuals",
   saveSlots: "saveSlots",
   worldStates: "worldStates",
   characters: "characters", events: "events", consultations: "consultations", checkpoints: "checkpoints", partnerProfiles: "partnerProfiles", partnerProfileHistory: "partnerProfileHistory", dialogues: "dialogues", items: "items", assets: "assets", assetBlobs: "assetBlobs"
@@ -33,7 +34,7 @@ export type StoredSaveData = {
   characters: unknown[];
   events?: unknown[];
   consultations?: unknown[];
-  partnerProfiles?: unknown[]; partnerProfileHistory?: unknown[]; dialogues?: unknown[]; items?: unknown[];
+  partnerProfiles?: unknown[]; partnerProfileHistory?: unknown[]; dialogues?: unknown[]; items?: unknown[]; mapVisuals?: unknown[];
 };
 
 export type CharacterRecord = {
@@ -60,4 +61,7 @@ export interface SaveRepository {
   getCharacterPin?(assetId: string, characterId: CharacterId): Promise<CharacterPinAsset | null>;
   putCharacterPin?(characterId: CharacterId, asset: CharacterPinAsset): Promise<CharacterState>;
   deleteCharacterPin?(characterId: CharacterId): Promise<CharacterState>;
+  getMapBackground?(assetId: string, mapId: MapBackgroundId): Promise<MapBackgroundAsset | null>;
+  putMapBackground?(mapId: MapBackgroundId, asset: MapBackgroundAsset): Promise<MapVisualState>;
+  deleteMapBackground?(mapId: MapBackgroundId): Promise<MapVisualState>;
 }

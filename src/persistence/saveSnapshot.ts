@@ -9,6 +9,7 @@ import { initialUnknownSprout, normalizeLocalDate, parseUnknownSprout } from "..
 import { parseAppliedExtension, parsePendingConsultation } from "../domain/consultation/unknownSproutConsultation";
 import { isSafeAssetId } from "../domain/assets/itemImages";
 import { mergeStarterItems } from "../domain/items/items";
+import { MAP_BACKGROUND_IDS, parseMapVisual } from "../domain/assets/mapBackgrounds";
 
 const characterIds: CharacterId[] = ["user", "cody"];
 const mapIds = new Set<MapId>(starterMaps.map(({ mapId }) => mapId));
@@ -58,8 +59,11 @@ export const restoreAppState = (initial: AppState, saved: StoredSaveData, now = 
   });
   duplicates.forEach((id) => validCharacters.delete(id));
 
+  const mapVisuals = Object.fromEntries(MAP_BACKGROUND_IDS.map((mapId) => [mapId, parseMapVisual((saved.mapVisuals ?? []).find((value) => value && typeof value === "object" && (value as { mapId?: unknown }).mapId === mapId), mapId)])) as AppState["mapVisuals"];
+
   return {
     ...initial,
+    mapVisuals,
     viewedMapId,
     activeNavigation: "map",
     developerPanelOpen: false,

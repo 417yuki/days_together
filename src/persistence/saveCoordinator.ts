@@ -6,6 +6,7 @@ import type { PartnerProfileSnapshot, PendingPartnerConsultation } from "../doma
 import type { CharacterPinAsset } from "../domain/assets/characterPins";
 import type { CharacterId } from "../domain/characters/characterTypes";
 import type { ItemImageAsset } from "../domain/assets/itemImages";
+import type { MapBackgroundAsset, MapBackgroundId } from "../domain/assets/mapBackgrounds";
 
 export type LoadResult = { state: AppState; available: boolean };
 
@@ -49,5 +50,8 @@ export class SaveCoordinator {
   getCharacterPin(assetId: string, characterId: CharacterId) { return this.repository.getCharacterPin?.(assetId, characterId) ?? Promise.resolve(null); }
   putCharacterPin(characterId: CharacterId, asset: CharacterPinAsset) { return this.exclusive(async () => { if (!this.repository.putCharacterPin) throw new Error("人物画像を保存できません"); return this.repository.putCharacterPin(characterId, asset); }); }
   deleteCharacterPin(characterId: CharacterId) { return this.exclusive(async () => { if (!this.repository.deleteCharacterPin) throw new Error("人物画像を削除できません"); return this.repository.deleteCharacterPin(characterId); }); }
+  getMapBackground(assetId: string, mapId: MapBackgroundId) { return this.repository.getMapBackground?.(assetId, mapId) ?? Promise.resolve(null); }
+  putMapBackground(mapId: MapBackgroundId, asset: MapBackgroundAsset) { return this.exclusive(async () => { if (!this.repository.putMapBackground) throw new Error("背景を保存できません"); return this.repository.putMapBackground(mapId, asset); }); }
+  deleteMapBackground(mapId: MapBackgroundId) { return this.exclusive(async () => { if (!this.repository.deleteMapBackground) throw new Error("背景を削除できません"); return this.repository.deleteMapBackground(mapId); }); }
   private exclusive<T>(task: () => Promise<T>): Promise<T> { const result = this.queue.then(task); this.queue = result.then(() => undefined).catch((error) => { console.error("排他データの保存に失敗しました", error); }); return result; }
 }

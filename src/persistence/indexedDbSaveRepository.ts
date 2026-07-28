@@ -4,16 +4,17 @@ import { parseAssetMetadata, validateItemImage, type ItemImageAsset } from "../d
 import { parseItem, type GameItem } from "../domain/items/items";
 import { parseCharacterPinMetadata, type CharacterPinAsset } from "../domain/assets/characterPins";
 import type { CharacterId, CharacterState } from "../domain/characters/characterTypes";
+import { parseMapBackgroundMetadata, parseMapVisual, type MapBackgroundAsset, type MapBackgroundId, type MapVisualState } from "../domain/assets/mapBackgrounds";
 
 export class IndexedDbSaveRepository implements SaveRepository {
   private database: Promise<IDBDatabase> | undefined;
 
   async loadMainSave(): Promise<StoredSaveData | null> {
     const db = await this.open();
-    const transaction = db.transaction([STORE_NAMES.saveSlots, STORE_NAMES.worldStates, STORE_NAMES.characters, STORE_NAMES.events, STORE_NAMES.consultations, STORE_NAMES.partnerProfiles, STORE_NAMES.partnerProfileHistory, STORE_NAMES.dialogues, STORE_NAMES.items], "readonly");
+    const transaction = db.transaction([STORE_NAMES.saveSlots, STORE_NAMES.worldStates, STORE_NAMES.characters, STORE_NAMES.events, STORE_NAMES.consultations, STORE_NAMES.partnerProfiles, STORE_NAMES.partnerProfileHistory, STORE_NAMES.dialogues, STORE_NAMES.items, STORE_NAMES.mapVisuals], "readonly");
     const slot = await request(transaction.objectStore(STORE_NAMES.saveSlots).get(MAIN_SAVE_SLOT_ID));
     if (!slot) { await transactionDone(transaction); return null; }
-    const [worldState, characters, events, consultations, partnerProfiles, partnerProfileHistory, dialogues, items] = await Promise.all([
+    const [worldState, characters, events, consultations, partnerProfiles, partnerProfileHistory, dialogues, items, mapVisuals] = await Promise.all([
       request(transaction.objectStore(STORE_NAMES.worldStates).get(MAIN_SAVE_SLOT_ID)),
       request(transaction.objectStore(STORE_NAMES.characters).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"]))),
       request(transaction.objectStore(STORE_NAMES.events).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"]))),
@@ -21,10 +22,11 @@ export class IndexedDbSaveRepository implements SaveRepository {
       request(transaction.objectStore(STORE_NAMES.partnerProfiles).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"]))),
       request(transaction.objectStore(STORE_NAMES.partnerProfileHistory).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, "", 0], [MAIN_SAVE_SLOT_ID, "\uffff", Number.MAX_SAFE_INTEGER]))),
       request(transaction.objectStore(STORE_NAMES.dialogues).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, "", ""], [MAIN_SAVE_SLOT_ID, "\uffff", "\uffff"]))),
-      request(transaction.objectStore(STORE_NAMES.items).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"])))
+      request(transaction.objectStore(STORE_NAMES.items).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"]))),
+      request(transaction.objectStore(STORE_NAMES.mapVisuals).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"])))
     ]);
     await transactionDone(transaction);
-    return { worldState, characters: Array.isArray(characters) ? characters : [], events: Array.isArray(events) ? events : [], consultations: Array.isArray(consultations) ? consultations : [], partnerProfiles, partnerProfileHistory, dialogues, items };
+    return { worldState, characters: Array.isArray(characters) ? characters : [], events: Array.isArray(events) ? events : [], consultations: Array.isArray(consultations) ? consultations : [], partnerProfiles, partnerProfileHistory, dialogues, items, mapVisuals };
   }
 
   async saveMain(snapshot: SaveSnapshot): Promise<void> {
@@ -33,7 +35,7 @@ export class IndexedDbSaveRepository implements SaveRepository {
     const now = new Date().toISOString();
     const slots = transaction.objectStore(STORE_NAMES.saveSlots);
     const existing = await request<Record<string, unknown> | undefined>(slots.get(MAIN_SAVE_SLOT_ID));
-    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 6, updatedAt: now });
+    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 7, updatedAt: now });
     slots.put({ saveSlotId: MAIN_SAVE_SLOT_ID, createdAt: typeof existing?.createdAt === "string" ? existing.createdAt : now, updatedAt: now });
     transaction.objectStore(STORE_NAMES.worldStates).put({ saveSlotId: MAIN_SAVE_SLOT_ID, viewedMapId: snapshot.viewedMapId, recentPartnerActionIds: snapshot.recentPartnerActionIds, worldStartedOn: snapshot.worldStartedOn });
     const characters = transaction.objectStore(STORE_NAMES.characters);
@@ -62,7 +64,7 @@ export class IndexedDbSaveRepository implements SaveRepository {
     const now = new Date().toISOString();
     const slots = transaction.objectStore(STORE_NAMES.saveSlots);
     const existingSlot = await request<Record<string, unknown> | undefined>(slots.get(MAIN_SAVE_SLOT_ID));
-    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 6, updatedAt: now });
+    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 7, updatedAt: now });
     slots.put({ saveSlotId: MAIN_SAVE_SLOT_ID, createdAt: typeof existingSlot?.createdAt === "string" ? existingSlot.createdAt : now, updatedAt: now });
     transaction.objectStore(STORE_NAMES.partnerProfiles).put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...next.profile });
     transaction.objectStore(STORE_NAMES.partnerProfileHistory).put({ saveSlotId: MAIN_SAVE_SLOT_ID, profileId: "main_partner", revision: next.profile.revision, ...next });
@@ -131,6 +133,27 @@ export class IndexedDbSaveRepository implements SaveRepository {
     const previous = typeof raw.imageAssetId === "string" ? raw.imageAssetId : null; const updated: Record<string, unknown> = { ...raw, imageAssetId: null }; characters.put(updated); if (previous) { transaction.objectStore(STORE_NAMES.assets).delete([MAIN_SAVE_SLOT_ID, previous]); transaction.objectStore(STORE_NAMES.assetBlobs).delete([MAIN_SAVE_SLOT_ID, previous]); } await transactionDone(transaction); const { saveSlotId: _, ...character } = updated; return character as CharacterState;
   }
 
+  async getMapBackground(assetId: string, mapId: MapBackgroundId): Promise<MapBackgroundAsset | null> {
+    const db = await this.open(); const tx = db.transaction([STORE_NAMES.assets, STORE_NAMES.assetBlobs], "readonly");
+    const [raw, record] = await Promise.all([request(tx.objectStore(STORE_NAMES.assets).get([MAIN_SAVE_SLOT_ID, assetId])), request(tx.objectStore(STORE_NAMES.assetBlobs).get([MAIN_SAVE_SLOT_ID, assetId]))]); await transactionDone(tx);
+    const metadata = parseMapBackgroundMetadata(raw, mapId), blob = record && typeof record === "object" ? (record as { blob?: unknown }).blob : null;
+    if (!metadata || !(blob instanceof Blob) || blob.type !== metadata.mimeType || blob.size !== metadata.byteSize) return null;
+    try { await validateItemImage(new File([blob], metadata.originalName, { type: metadata.mimeType })); } catch { return null; } return { metadata, blob };
+  }
+
+  async putMapBackground(mapId: MapBackgroundId, asset: MapBackgroundAsset): Promise<MapVisualState> {
+    await validateItemImage(new File([asset.blob], asset.metadata.originalName, { type: asset.metadata.mimeType }));
+    if (!parseMapBackgroundMetadata(asset.metadata, mapId) || asset.blob.type !== asset.metadata.mimeType || asset.blob.size !== asset.metadata.byteSize) throw new Error("画像または対象マップを確認できません。");
+    const db = await this.open(); const tx = db.transaction([STORE_NAMES.mapVisuals, STORE_NAMES.assets, STORE_NAMES.assetBlobs], "readwrite"); const visuals = tx.objectStore(STORE_NAMES.mapVisuals);
+    const previous = parseMapVisual(await request(visuals.get([MAIN_SAVE_SLOT_ID, mapId])), mapId).backgroundAssetId; const next = { saveSlotId: MAIN_SAVE_SLOT_ID, mapId, backgroundAssetId: asset.metadata.assetId, updatedAt: asset.metadata.updatedAt } satisfies MapVisualState;
+    tx.objectStore(STORE_NAMES.assets).put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...asset.metadata }); tx.objectStore(STORE_NAMES.assetBlobs).put({ saveSlotId: MAIN_SAVE_SLOT_ID, assetId: asset.metadata.assetId, blob: asset.blob }); visuals.put(next);
+    if (previous) { tx.objectStore(STORE_NAMES.assets).delete([MAIN_SAVE_SLOT_ID, previous]); tx.objectStore(STORE_NAMES.assetBlobs).delete([MAIN_SAVE_SLOT_ID, previous]); } await transactionDone(tx); return next;
+  }
+
+  async deleteMapBackground(mapId: MapBackgroundId): Promise<MapVisualState> {
+    const db = await this.open(); const tx = db.transaction([STORE_NAMES.mapVisuals, STORE_NAMES.assets, STORE_NAMES.assetBlobs], "readwrite"); const visuals = tx.objectStore(STORE_NAMES.mapVisuals); const previous = parseMapVisual(await request(visuals.get([MAIN_SAVE_SLOT_ID, mapId])), mapId).backgroundAssetId; const next = { saveSlotId: MAIN_SAVE_SLOT_ID, mapId, backgroundAssetId: null, updatedAt: new Date().toISOString() } satisfies MapVisualState; visuals.put(next); if (previous) { tx.objectStore(STORE_NAMES.assets).delete([MAIN_SAVE_SLOT_ID, previous]); tx.objectStore(STORE_NAMES.assetBlobs).delete([MAIN_SAVE_SLOT_ID, previous]); } await transactionDone(tx); return next;
+  }
+
   private open(): Promise<IDBDatabase> {
     if (this.database) return this.database;
     this.database = new Promise((resolve, reject) => {
@@ -149,6 +172,7 @@ export class IndexedDbSaveRepository implements SaveRepository {
         if (!db.objectStoreNames.contains(STORE_NAMES.dialogues)) db.createObjectStore(STORE_NAMES.dialogues, { keyPath: ["saveSlotId", "profileId", "dialogueId"] });
         if (!db.objectStoreNames.contains(STORE_NAMES.items)) db.createObjectStore(STORE_NAMES.items, { keyPath: ["saveSlotId", "itemId"] });
         if (!db.objectStoreNames.contains(STORE_NAMES.assets)) db.createObjectStore(STORE_NAMES.assets, { keyPath: ["saveSlotId", "assetId"] });
+        if (!db.objectStoreNames.contains(STORE_NAMES.mapVisuals)) db.createObjectStore(STORE_NAMES.mapVisuals, { keyPath: ["saveSlotId", "mapId"] });
         if (!db.objectStoreNames.contains(STORE_NAMES.assetBlobs)) db.createObjectStore(STORE_NAMES.assetBlobs, { keyPath: ["saveSlotId", "assetId"] });
       };
       openRequest.onerror = () => reject(openRequest.error ?? new Error("IndexedDBを開けませんでした"));
