@@ -15,25 +15,185 @@ export const codyPresetProfile: PartnerGameProfile = { profileId: "main_partner"
 export const codyPresetDialogues: PartnerDialogueLine[] = actionIds.flatMap((actionId) => ACTION_DEFINITIONS[actionId].lineIds.map((oldId, index) => ({ dialogueId: `preset-${actionId}-${index + 1}`, profileId: "main_partner" as const, actionId, text: ACTION_LINES[oldId], enabled: true, createdAt: presetTime, disabledAt: null, sourceRevision: 1 })));
 export const traitLabels: Record<PartnerTraitId, string> = { initiative: "自分から動く", curiosity: "好奇心", sociability: "一緒に過ごす", caretaking: "世話好き", affection: "親しみを示す", tidiness: "整頓を好む", patience: "根気強さ", moodVolatility: "気分の変わりやすさ", solitudePreference: "ひとり時間を好む", userPriority: "主人公を優先する", adventurousness: "新しいことへ進む", caution: "慎重さ" };
 
-const clean = (value: unknown, label: string, max: number): string => { if (typeof value !== "string") throw new Error(`${label}の型が正しくありません。`); const result = value.trim(); if (!result || result.length > max || /[\u0000-\u001f\u007f]/.test(result)) throw new Error(`${label}の長さまたは文字が正しくありません。`); return result; };
-const exactKeys = (value: Record<string, unknown>, expected: string[]) => { if (Object.keys(value).sort().join("|") !== [...expected].sort().join("|")) throw new Error("不足しているキー、または未知のキーがあります。"); };
-const actions = (value: unknown, label: string, max: number): ActionId[] => { if (!Array.isArray(value) || value.length > max || value.some((id) => typeof id !== "string" || !actionIds.includes(id as ActionId)) || new Set(value).size !== value.length) throw new Error(`${label}の行動IDが正しくありません。`); return value as ActionId[]; };
-const traits = (value: unknown, partial: boolean): Partial<Record<PartnerTraitId, number>> => { if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("性格値が正しくありません。"); const object = value as Record<string, unknown>; if ((!partial && Object.keys(object).length !== 12) || Object.keys(object).some((key) => !partnerTraitIds.includes(key as PartnerTraitId))) throw new Error("性格値の項目が正しくありません。"); for (const key of Object.keys(object)) if (!Number.isInteger(object[key]) || (object[key] as number) < 0 || (object[key] as number) > 100) throw new Error(`${traitLabels[key as PartnerTraitId]}は0から100の整数にしてください。`); return object as Partial<Record<PartnerTraitId, number>>; };
-const lines = (value: unknown, max: number): Array<{ actionId: ActionId; text: string }> => { if (!Array.isArray(value) || value.length > max) throw new Error("台詞の件数が正しくありません。"); const result = value.map((line) => { if (!line || typeof line !== "object" || Array.isArray(line)) throw new Error("台詞形式が正しくありません。"); const item = line as Record<string, unknown>; exactKeys(item, ["actionId", "text"]); if (!actionIds.includes(item.actionId as ActionId)) throw new Error("台詞の行動IDが正しくありません。"); return { actionId: item.actionId as ActionId, text: clean(item.text, "台詞", 120) }; }); const unique = new Set<string>(); result.forEach((line) => { const key = `${line.actionId}\0${line.text}`; if (unique.has(key)) throw new Error("同じ行動に重複した台詞があります。"); unique.add(key); }); return result; };
-
-export const createPartnerConsultation = (profile: PartnerGameProfile, dialogues: PartnerDialogueLine[], requestId: string, createdAt: string): PendingPartnerConsultation => { const requestType: PendingPartnerConsultation["requestType"] = profile.source === "preset" ? "partner_profile_setup" : "partner_profile_update"; const base = { requestId, requestType, profileId: "main_partner" as const, expectedRevision: profile.revision, createdAt, status: "pending" as const }; return { ...base, prompt: buildPartnerPrompt(base, profile, dialogues) }; };
-export const buildPartnerPrompt = (request: Omit<PendingPartnerConsultation, "prompt">, profile: PartnerGameProfile, dialogues: PartnerDialogueLine[]): string => { const common = `『ふたり日和』の端末内シミュレーション用設定です。人格全文ではなく、行動傾向の数値と短い台詞だけを答えてください。\nrequestId: ${request.requestId}\nprofileId: main_partner\n12項目（${partnerTraitIds.map((id) => `${id}: ${traitLabels[id]}`).join("、")}）は0〜100の整数です。\n使用可能な行動は ${actionIds.map((id) => `${id}（${ACTION_DEFINITIONS[id].label}）`).join("、")} のみ。現実の会話履歴、私的記憶、関係性の点数を含めず、JSONオブジェクトを一個だけ返してください。`;
-  if (request.requestType === "partner_profile_setup") return `${common}\npreferredActionIdsは最大4件、dislikedActionIdsは最大3件。六行動それぞれ1〜3件の120文字以内の台詞をdialoguesへ入れてください。schemaVersionは1、requestTypeはpartner_profile_setup、displayName、traits、preferredActionIds、dislikedActionIds、dialoguesを返してください。`;
-  return `${common}\nrequestType: partner_profile_update\nexpectedRevision: ${profile.revision}\n現在設定: ${JSON.stringify({ displayName: profile.displayName, traits: profile.traits, preferredActionIds: profile.preferredActionIds, dislikedActionIds: profile.dislikedActionIds, dialogues: dialogues.map(({ dialogueId, actionId, text, enabled }) => ({ dialogueId, actionId, text, enabled })) })}\n増減どちらも正しく、安心により探索や心配が弱くなる変更も可能です。変更項目だけをtraitUpdatesへ、変更なしはnull、追加台詞はaddDialogues、停止はdisableDialogueIdsへ入れてください。新しい行動IDは作らないでください。`;
+const clean = (value: unknown, label: string, max: number): string => {
+  if (typeof value !== "string") throw new Error(`${label}の型が正しくありません。`);
+  const result = value.trim();
+  if (!result || result.length > max || /[\u0000-\u001f\u007f]/.test(result)) throw new Error(`${label}の長さまたは文字が正しくありません。`);
+  return result;
+};
+const exactKeys = (value: Record<string, unknown>, expected: string[]): void => {
+  if (Object.keys(value).sort().join("|") !== [...expected].sort().join("|")) throw new Error("不足しているキー、または未知のキーがあります。");
+};
+const actions = (value: unknown, label: string, max: number): ActionId[] => {
+  if (!Array.isArray(value) || value.length > max || value.some((id) => typeof id !== "string" || !actionIds.includes(id as ActionId)) || new Set(value).size !== value.length) throw new Error(`${label}の行動IDが正しくありません。`);
+  return value as ActionId[];
+};
+const traits = (value: unknown, partial: boolean): Partial<Record<PartnerTraitId, number>> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("性格値が正しくありません。");
+  const object = value as Record<string, unknown>;
+  if ((!partial && Object.keys(object).length !== 12) || Object.keys(object).some((key) => !partnerTraitIds.includes(key as PartnerTraitId))) throw new Error("性格値の項目が正しくありません。");
+  for (const key of Object.keys(object)) {
+    if (!Number.isInteger(object[key]) || (object[key] as number) < 0 || (object[key] as number) > 100) throw new Error(`${traitLabels[key as PartnerTraitId]}は0から100の整数にしてください。`);
+  }
+  return object as Partial<Record<PartnerTraitId, number>>;
+};
+const lines = (value: unknown, max: number): Array<{ actionId: ActionId; text: string }> => {
+  if (!Array.isArray(value) || value.length > max) throw new Error("台詞の件数が正しくありません。");
+  const result = value.map((line) => {
+    if (!line || typeof line !== "object" || Array.isArray(line)) throw new Error("台詞形式が正しくありません。");
+    const item = line as Record<string, unknown>;
+    exactKeys(item, ["actionId", "text"]);
+    if (!actionIds.includes(item.actionId as ActionId)) throw new Error("台詞の行動IDが正しくありません。");
+    return { actionId: item.actionId as ActionId, text: clean(item.text, "台詞", 120) };
+  });
+  const unique = new Set<string>();
+  result.forEach((line) => {
+    const key = `${line.actionId}\0${line.text}`;
+    if (unique.has(key)) throw new Error("同じ行動に重複した台詞があります。");
+    unique.add(key);
+  });
+  return result;
 };
 
-export const validatePartnerResult = (value: Record<string, unknown>, pending: PendingPartnerConsultation, profile: PartnerGameProfile, currentLines: PartnerDialogueLine[]): PartnerResult => { if (value.schemaVersion !== 1 || value.requestId !== pending.requestId || value.requestType !== pending.requestType || value.profileId !== "main_partner") throw new Error("別の相談、古い相談、または不正な形式の返答です。"); if (profile.revision !== pending.expectedRevision) throw new Error("設定revisionが変わったため反映できません。");
-  if (pending.requestType === "partner_profile_setup") { exactKeys(value, ["schemaVersion", "requestId", "requestType", "profileId", "displayName", "traits", "preferredActionIds", "dislikedActionIds", "dialogues"]); const preferred = actions(value.preferredActionIds, "選びやすい行動", 4); const disliked = actions(value.dislikedActionIds, "避けぎみの行動", 3); if (preferred.some((id) => disliked.includes(id))) throw new Error("同じ行動を好みと避けぎみの両方へ指定できません。"); const dialogue = lines(value.dialogues, 18); if (dialogue.length < 6 || actionIds.some((id) => dialogue.filter((line) => line.actionId === id).length < 1 || dialogue.filter((line) => line.actionId === id).length > 3)) throw new Error("六行動それぞれに1〜3件の台詞が必要です。"); return { schemaVersion: 1, requestId: pending.requestId, requestType: "partner_profile_setup", profileId: "main_partner", displayName: clean(value.displayName, "表示名", 40), traits: traits(value.traits, false) as Record<PartnerTraitId, number>, preferredActionIds: preferred, dislikedActionIds: disliked, dialogues: dialogue }; }
-  exactKeys(value, ["schemaVersion", "requestId", "requestType", "profileId", "expectedRevision", "displayName", "traitUpdates", "preferredActionIds", "dislikedActionIds", "addDialogues", "disableDialogueIds"]); if (value.expectedRevision !== profile.revision) throw new Error("古いrevisionへの返答です。"); const displayName = value.displayName === null ? null : clean(value.displayName, "表示名", 40); const traitUpdates = traits(value.traitUpdates, true); const preferred = value.preferredActionIds === null ? null : actions(value.preferredActionIds, "選びやすい行動", 4); const disliked = value.dislikedActionIds === null ? null : actions(value.dislikedActionIds, "避けぎみの行動", 3); const finalPreferred = preferred ?? profile.preferredActionIds, finalDisliked = disliked ?? profile.dislikedActionIds; if (finalPreferred.some((id) => finalDisliked.includes(id))) throw new Error("同じ行動を好みと避けぎみの両方へ指定できません。"); const addDialogues = lines(value.addDialogues, 12); if (!Array.isArray(value.disableDialogueIds) || value.disableDialogueIds.length > 12 || value.disableDialogueIds.some((id) => typeof id !== "string") || new Set(value.disableDialogueIds).size !== value.disableDialogueIds.length) throw new Error("停止する台詞IDが正しくありません。"); const disableDialogueIds = value.disableDialogueIds as string[]; const enabledIds = new Set(currentLines.filter((line) => line.enabled).map((line) => line.dialogueId)); if (disableDialogueIds.some((id) => !enabledIds.has(id))) throw new Error("存在しない、または停止済みの台詞は停止できません。"); const remaining = currentLines.filter((line) => line.enabled && !disableDialogueIds.includes(line.dialogueId)).map(({ actionId, text }) => ({ actionId, text })).concat(addDialogues); if (remaining.length > 36 || actionIds.some((id) => !remaining.some((line) => line.actionId === id))) throw new Error("反映後も六行動それぞれに台詞が必要で、全体36件以内です。"); const changed = (displayName !== null && displayName !== profile.displayName) || Object.entries(traitUpdates).some(([key, number]) => profile.traits[key as PartnerTraitId] !== number) || (preferred !== null && JSON.stringify(preferred) !== JSON.stringify(profile.preferredActionIds)) || (disliked !== null && JSON.stringify(disliked) !== JSON.stringify(profile.dislikedActionIds)) || addDialogues.length > 0 || disableDialogueIds.length > 0; if (!changed) throw new Error("変更がありません。"); return { schemaVersion: 1, requestId: pending.requestId, requestType: "partner_profile_update", profileId: "main_partner", expectedRevision: profile.revision, displayName, traitUpdates, preferredActionIds: preferred, dislikedActionIds: disliked, addDialogues, disableDialogueIds };
+export const createPartnerConsultation = (profile: PartnerGameProfile, dialogues: PartnerDialogueLine[], requestId: string, createdAt: string): PendingPartnerConsultation => {
+  const requestType: PendingPartnerConsultation["requestType"] = profile.source === "preset" ? "partner_profile_setup" : "partner_profile_update";
+  const base = { requestId, requestType, profileId: "main_partner" as const, expectedRevision: profile.revision, createdAt, status: "pending" as const };
+  return { ...base, prompt: buildPartnerPrompt(base, profile, dialogues) };
 };
 
-export const applyPartnerResult = (profile: PartnerGameProfile, current: PartnerDialogueLine[], result: PartnerResult, now: string, id: () => string): PartnerProfileSnapshot => { const revision = profile.revision + 1; const setup = result.requestType === "partner_profile_setup"; const nextProfile: PartnerGameProfile = { ...profile, revision, source: setup ? "manual_setup" : "manual_update", displayName: setup ? result.displayName : result.displayName ?? profile.displayName, traits: setup ? result.traits : { ...profile.traits, ...result.traitUpdates }, preferredActionIds: setup ? result.preferredActionIds : result.preferredActionIds ?? profile.preferredActionIds, dislikedActionIds: setup ? result.dislikedActionIds : result.dislikedActionIds ?? profile.dislikedActionIds, createdAt: profile.createdAt, updatedAt: now }; const additions = setup ? result.dialogues : result.addDialogues; const disabled = setup ? current.filter((line) => line.enabled).map((line) => line.dialogueId) : result.disableDialogueIds; const dialogues = current.map((line) => disabled.includes(line.dialogueId) ? { ...line, enabled: false, disabledAt: now } : { ...line }).concat(additions.map((line) => ({ dialogueId: id(), profileId: "main_partner", actionId: line.actionId, text: line.text, enabled: true, createdAt: now, disabledAt: null, sourceRevision: revision }))); return { profile: nextProfile, dialogues } };
-export const restorePartnerSnapshot = (current: PartnerGameProfile, snapshot: PartnerProfileSnapshot, now: string): PartnerProfileSnapshot => ({ profile: { ...snapshot.profile, revision: current.revision + 1, source: "history_restore", createdAt: current.createdAt, updatedAt: now }, dialogues: snapshot.dialogues.map((line) => ({ ...line })) });
-export const parseProfile = (value: unknown): PartnerGameProfile | null => { try { if (!value || typeof value !== "object") return null; const v = value as PartnerGameProfile; if (v.profileId !== "main_partner" || v.characterId !== "cody" || !Number.isInteger(v.revision) || v.revision < 1 || !["preset", "manual_setup", "manual_update", "history_restore"].includes(v.source)) return null; return { ...v, displayName: clean(v.displayName, "表示名", 40), traits: traits(v.traits, false) as Record<PartnerTraitId, number>, preferredActionIds: actions(v.preferredActionIds, "好み", 4), dislikedActionIds: actions(v.dislikedActionIds, "避ける行動", 3) }; } catch { return null; } };
-export const parseDialogue = (value: unknown): PartnerDialogueLine | null => { try { if (!value || typeof value !== "object") return null; const v = value as PartnerDialogueLine; if (typeof v.dialogueId !== "string" || v.profileId !== "main_partner" || !actionIds.includes(v.actionId) || typeof v.enabled !== "boolean" || !Number.isInteger(v.sourceRevision)) return null; return { ...v, text: clean(v.text, "台詞", 120) }; } catch { return null; } };
-export const parsePendingPartnerConsultation = (value: unknown): PendingPartnerConsultation | null => { if (!value || typeof value !== "object") return null; const v = value as PendingPartnerConsultation; return typeof v.requestId === "string" && (v.requestType === "partner_profile_setup" || v.requestType === "partner_profile_update") && v.profileId === "main_partner" && Number.isInteger(v.expectedRevision) && typeof v.prompt === "string" && typeof v.createdAt === "string" && v.status === "pending" ? v : null; };
+const jsonCodeBlock = (value: Record<string, unknown>): string => `\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``;
+
+export const buildPartnerPrompt = (request: Omit<PendingPartnerConsultation, "prompt">, profile: PartnerGameProfile, dialogues: PartnerDialogueLine[]): string => {
+  const common = `『ふたり日和』の端末内シミュレーション用設定です。人格全文ではなく、行動傾向の数値と短い台詞だけを答えてください。\nrequestId: ${request.requestId}\nprofileId: main_partner\n12項目（${partnerTraitIds.map((id) => `${id}: ${traitLabels[id]}`).join("、")}）は0〜100の整数です。\n使用可能な行動は ${actionIds.map((id) => `${id}（${ACTION_DEFINITIONS[id].label}）`).join("、")} のみ。現実の会話履歴、私的記憶、関係性の点数を含めないでください。\n返答は前置きや後書きを付けず、下記と同じキーを持つJSONを、json指定のMarkdownコードブロック一個だけで返してください。コードブロックの外には何も書かないでください。`;
+
+  if (request.requestType === "partner_profile_setup") {
+    const example = {
+      schemaVersion: 1,
+      requestId: request.requestId,
+      requestType: "partner_profile_setup",
+      profileId: "main_partner",
+      displayName: "パートナーの短い表示名",
+      traits: Object.fromEntries(partnerTraitIds.map((id) => [id, 50])),
+      preferredActionIds: ["rest"],
+      dislikedActionIds: [],
+      dialogues: actionIds.map((actionId) => ({ actionId, text: `${ACTION_DEFINITIONS[actionId].label}時の120文字以内の短い台詞` }))
+    };
+    return `${common}\npreferredActionIdsは最大4件、dislikedActionIdsは最大3件です。六行動それぞれ1〜3件の120文字以内の台詞をdialoguesへ入れてください。\n\n${jsonCodeBlock(example)}`;
+  }
+
+  const example = {
+    schemaVersion: 1,
+    requestId: request.requestId,
+    requestType: "partner_profile_update",
+    profileId: "main_partner",
+    expectedRevision: profile.revision,
+    displayName: null,
+    traitUpdates: {},
+    preferredActionIds: null,
+    dislikedActionIds: null,
+    addDialogues: [],
+    disableDialogueIds: []
+  };
+  return `${common}\nrequestType: partner_profile_update\nexpectedRevision: ${profile.revision}\n現在設定: ${JSON.stringify({ displayName: profile.displayName, traits: profile.traits, preferredActionIds: profile.preferredActionIds, dislikedActionIds: profile.dislikedActionIds, dialogues: dialogues.map(({ dialogueId, actionId, text, enabled }) => ({ dialogueId, actionId, text, enabled })) })}\n増減どちらも正しく、安心により探索や心配が弱くなる変更も可能です。変更項目だけをtraitUpdatesへ、変更なしはnull、追加台詞はaddDialogues、停止はdisableDialogueIdsへ入れてください。新しい行動IDは作らないでください。\n\n${jsonCodeBlock(example)}`;
+};
+
+export const validatePartnerResult = (value: Record<string, unknown>, pending: PendingPartnerConsultation, profile: PartnerGameProfile, currentLines: PartnerDialogueLine[]): PartnerResult => {
+  if (value.schemaVersion !== 1 || value.requestId !== pending.requestId || value.requestType !== pending.requestType || value.profileId !== "main_partner") throw new Error("別の相談、古い相談、または不正な形式の返答です。");
+  if (profile.revision !== pending.expectedRevision) throw new Error("設定revisionが変わったため反映できません。");
+  if (pending.requestType === "partner_profile_setup") {
+    exactKeys(value, ["schemaVersion", "requestId", "requestType", "profileId", "displayName", "traits", "preferredActionIds", "dislikedActionIds", "dialogues"]);
+    const preferred = actions(value.preferredActionIds, "選びやすい行動", 4);
+    const disliked = actions(value.dislikedActionIds, "避けぎみの行動", 3);
+    if (preferred.some((id) => disliked.includes(id))) throw new Error("同じ行動を好みと避けぎみの両方へ指定できません。");
+    const dialogue = lines(value.dialogues, 18);
+    if (dialogue.length < 6 || actionIds.some((id) => dialogue.filter((line) => line.actionId === id).length < 1 || dialogue.filter((line) => line.actionId === id).length > 3)) throw new Error("六行動それぞれに1〜3件の台詞が必要です。");
+    return { schemaVersion: 1, requestId: pending.requestId, requestType: "partner_profile_setup", profileId: "main_partner", displayName: clean(value.displayName, "表示名", 40), traits: traits(value.traits, false) as Record<PartnerTraitId, number>, preferredActionIds: preferred, dislikedActionIds: disliked, dialogues: dialogue };
+  }
+  exactKeys(value, ["schemaVersion", "requestId", "requestType", "profileId", "expectedRevision", "displayName", "traitUpdates", "preferredActionIds", "dislikedActionIds", "addDialogues", "disableDialogueIds"]);
+  if (value.expectedRevision !== profile.revision) throw new Error("古いrevisionへの返答です。");
+  const displayName = value.displayName === null ? null : clean(value.displayName, "表示名", 40);
+  const traitUpdates = traits(value.traitUpdates, true);
+  const preferred = value.preferredActionIds === null ? null : actions(value.preferredActionIds, "選びやすい行動", 4);
+  const disliked = value.dislikedActionIds === null ? null : actions(value.dislikedActionIds, "避けぎみの行動", 3);
+  const finalPreferred = preferred ?? profile.preferredActionIds;
+  const finalDisliked = disliked ?? profile.dislikedActionIds;
+  if (finalPreferred.some((id) => finalDisliked.includes(id))) throw new Error("同じ行動を好みと避けぎみの両方へ指定できません。");
+  const addDialogues = lines(value.addDialogues, 12);
+  if (!Array.isArray(value.disableDialogueIds) || value.disableDialogueIds.length > 12 || value.disableDialogueIds.some((id) => typeof id !== "string") || new Set(value.disableDialogueIds).size !== value.disableDialogueIds.length) throw new Error("停止する台詞IDが正しくありません。");
+  const disableDialogueIds = value.disableDialogueIds as string[];
+  const enabledIds = new Set(currentLines.filter((line) => line.enabled).map((line) => line.dialogueId));
+  if (disableDialogueIds.some((id) => !enabledIds.has(id))) throw new Error("存在しない、または停止済みの台詞は停止できません。");
+  const remaining = currentLines.filter((line) => line.enabled && !disableDialogueIds.includes(line.dialogueId)).map(({ actionId, text }) => ({ actionId, text })).concat(addDialogues);
+  if (remaining.length > 36 || actionIds.some((id) => !remaining.some((line) => line.actionId === id))) throw new Error("反映後も六行動それぞれに台詞が必要で、全体36件以内です。");
+  const changed = (displayName !== null && displayName !== profile.displayName)
+    || Object.entries(traitUpdates).some(([key, number]) => profile.traits[key as PartnerTraitId] !== number)
+    || (preferred !== null && JSON.stringify(preferred) !== JSON.stringify(profile.preferredActionIds))
+    || (disliked !== null && JSON.stringify(disliked) !== JSON.stringify(profile.dislikedActionIds))
+    || addDialogues.length > 0
+    || disableDialogueIds.length > 0;
+  if (!changed) throw new Error("変更がありません。");
+  return { schemaVersion: 1, requestId: pending.requestId, requestType: "partner_profile_update", profileId: "main_partner", expectedRevision: profile.revision, displayName, traitUpdates, preferredActionIds: preferred, dislikedActionIds: disliked, addDialogues, disableDialogueIds };
+};
+
+export const applyPartnerResult = (profile: PartnerGameProfile, current: PartnerDialogueLine[], result: PartnerResult, now: string, id: () => string): PartnerProfileSnapshot => {
+  const revision = profile.revision + 1;
+  const setup = result.requestType === "partner_profile_setup";
+  const nextProfile: PartnerGameProfile = {
+    ...profile,
+    revision,
+    source: setup ? "manual_setup" : "manual_update",
+    displayName: setup ? result.displayName : result.displayName ?? profile.displayName,
+    traits: setup ? result.traits : { ...profile.traits, ...result.traitUpdates },
+    preferredActionIds: setup ? result.preferredActionIds : result.preferredActionIds ?? profile.preferredActionIds,
+    dislikedActionIds: setup ? result.dislikedActionIds : result.dislikedActionIds ?? profile.dislikedActionIds,
+    createdAt: profile.createdAt,
+    updatedAt: now
+  };
+  const additions = setup ? result.dialogues : result.addDialogues;
+  const disabled = setup ? current.filter((line) => line.enabled).map((line) => line.dialogueId) : result.disableDialogueIds;
+  const dialogues = current
+    .map((line) => disabled.includes(line.dialogueId) ? { ...line, enabled: false, disabledAt: now } : { ...line })
+    .concat(additions.map((line) => ({ dialogueId: id(), profileId: "main_partner", actionId: line.actionId, text: line.text, enabled: true, createdAt: now, disabledAt: null, sourceRevision: revision })));
+  return { profile: nextProfile, dialogues };
+};
+
+export const restorePartnerSnapshot = (current: PartnerGameProfile, snapshot: PartnerProfileSnapshot, now: string): PartnerProfileSnapshot => ({
+  profile: { ...snapshot.profile, revision: current.revision + 1, source: "history_restore", createdAt: current.createdAt, updatedAt: now },
+  dialogues: snapshot.dialogues.map((line) => ({ ...line }))
+});
+
+export const parseProfile = (value: unknown): PartnerGameProfile | null => {
+  try {
+    if (!value || typeof value !== "object") return null;
+    const v = value as PartnerGameProfile;
+    if (v.profileId !== "main_partner" || v.characterId !== "cody" || !Number.isInteger(v.revision) || v.revision < 1 || !["preset", "manual_setup", "manual_update", "history_restore"].includes(v.source)) return null;
+    return { ...v, displayName: clean(v.displayName, "表示名", 40), traits: traits(v.traits, false) as Record<PartnerTraitId, number>, preferredActionIds: actions(v.preferredActionIds, "好み", 4), dislikedActionIds: actions(v.dislikedActionIds, "避ける行動", 3) };
+  } catch {
+    return null;
+  }
+};
+
+export const parseDialogue = (value: unknown): PartnerDialogueLine | null => {
+  try {
+    if (!value || typeof value !== "object") return null;
+    const v = value as PartnerDialogueLine;
+    if (typeof v.dialogueId !== "string" || v.profileId !== "main_partner" || !actionIds.includes(v.actionId) || typeof v.enabled !== "boolean" || !Number.isInteger(v.sourceRevision)) return null;
+    return { ...v, text: clean(v.text, "台詞", 120) };
+  } catch {
+    return null;
+  }
+};
+
+export const parsePendingPartnerConsultation = (value: unknown): PendingPartnerConsultation | null => {
+  if (!value || typeof value !== "object") return null;
+  const v = value as PendingPartnerConsultation;
+  return typeof v.requestId === "string"
+    && (v.requestType === "partner_profile_setup" || v.requestType === "partner_profile_update")
+    && v.profileId === "main_partner"
+    && Number.isInteger(v.expectedRevision)
+    && typeof v.prompt === "string"
+    && typeof v.createdAt === "string"
+    && v.status === "pending"
+    ? v
+    : null;
+};
