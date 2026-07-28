@@ -2,6 +2,7 @@ import { starterMaps } from "../../data/starterMaps";
 import type { CharacterState } from "../../domain/characters/characterTypes";
 import { selectCharactersOnMap, selectProxyCharacters } from "../../domain/maps/mapSelectors";
 import type { LocationDefinition, MapDefinition, MapId } from "../../domain/maps/mapTypes";
+import { unknownSproutDefinition, type UnknownSproutState } from "../../domain/events/unknownSprout";
 
 type MapViewOptions = {
   map: MapDefinition;
@@ -11,9 +12,11 @@ type MapViewOptions = {
   onLocation: (location: LocationDefinition) => void;
   onHouse: () => void;
   onResidents: (trigger: HTMLElement) => void;
+  unknownSprout: UnknownSproutState;
+  onEvent: (trigger: HTMLElement) => void;
 };
 
-export const MapView = ({ map, characters, feedback: feedbackText, onMapChange, onLocation, onHouse, onResidents }: MapViewOptions): HTMLElement => {
+export const MapView = ({ map, characters, feedback: feedbackText, onMapChange, onLocation, onHouse, onResidents, unknownSprout, onEvent }: MapViewOptions): HTMLElement => {
   const section = document.createElement("section"); section.className = "map-section"; section.setAttribute("aria-labelledby", "map-heading");
   const heading = document.createElement("h2"); heading.id = "map-heading"; heading.className = "visually-hidden"; heading.textContent = `${map.name}のマップ`;
   const tabs = document.createElement("div"); tabs.className = "map-tabs"; tabs.setAttribute("role", "group"); tabs.setAttribute("aria-label", "表示するマップ");
@@ -27,6 +30,12 @@ export const MapView = ({ map, characters, feedback: feedbackText, onMapChange, 
     house.append(roof, name, description); house.dataset.focusKey = `house-${map.mapId}`; house.setAttribute("aria-label", "家の外観。家の中を見る"); house.addEventListener("click", onHouse); canvas.append(house);
   }
   map.locations.forEach((location) => { const button = document.createElement("button"); button.type = "button"; button.className = "map-location"; button.dataset.focusKey = `location-${map.mapId}-${location.locationId}`; button.textContent = location.label; positionAt(button, location); button.addEventListener("click", () => onLocation(location)); canvas.append(button); });
+  if (map.mapId === unknownSproutDefinition.mapId && unknownSprout.status !== "locked") {
+    const marker = document.createElement("button"); marker.type = "button"; marker.className = `event-marker event-marker--${unknownSprout.stage}`; marker.dataset.focusKey = "event-unknown_sprout";
+    marker.textContent = unknownSprout.stage === "flower" ? "✿ 花" : unknownSprout.stage === "growing" ? "🌱 育つ芽" : unknownSprout.stage === "observed" ? "🌱 観察中" : "🌱 芽";
+    marker.setAttribute("aria-label", unknownSprout.stage === "flower" ? "知らない芽から咲いた花。概要を見る" : `${marker.textContent}。知らない芽の概要を見る`);
+    marker.style.left = `${unknownSproutDefinition.position.x * 100}%`; marker.style.top = `${unknownSproutDefinition.position.y * 100}%`; marker.addEventListener("click", () => onEvent(marker)); canvas.append(marker);
+  }
   selectCharactersOnMap(characters, map).forEach(({ character: state, location }) => canvas.append(character(state, location)));
   const proxies = selectProxyCharacters(characters, map);
   if (proxies.length > 0) {

@@ -14,3 +14,4 @@
 .partner-line { color: var(--color-accent-dark); font-weight: 700; }
 .decision-scores { max-height: 220px; margin-top: 12px; overflow-y: auto; border-top: 1px solid var(--color-border); font-size: .72rem; }
 .decision-scores h3 { margin-block: 10px 5px; }.decision-scores p { margin-block: 5px; overflow-wrap: anywhere; }
+.event-detail { min-height: 430px; }.event-detail > button:first-child { margin-bottom: 12px; }.event-choices { display: grid; gap: 10px; margin-top: 20px; }.event-choices button, .dialog-actions button { min-height: 44px; }
