@@ -46,6 +46,7 @@ export class Store {
   setItemMessage(itemMessage: string): void { this.update({ itemMessage }); }
   cacheItemDraft(next: Partial<ItemDraft>): void { this.state = { ...this.state, itemDraft: { ...this.state.itemDraft, ...next } }; }
   addItem(item: GameItem): void { this.update({ items: [...this.state.items, structuredClone(item)], itemView: "detail", selectedItemId: item.itemId, itemMessage: "アイテムを登録しました。", itemDraft: createEmptyItemDraft() }); }
+  replaceItem(item: GameItem, itemMessage: string): void { this.update({ items: this.state.items.map((value) => value.itemId === item.itemId ? structuredClone(item) : value), itemMessage }); }
   toggleDeveloperPanel(force?: boolean): void { this.update({ developerPanelOpen: force ?? !this.state.developerPanelOpen }); }
   setSaveStatus(saveStatus: SaveStatus): void { if (this.state.saveStatus !== saveStatus) this.update({ saveStatus }); }
   setPartnerActivity(partnerActivity: PartnerActivityState, message?: string): void { this.update({ partnerActivity: { ...partnerActivity, destination: partnerActivity.destination && { ...partnerActivity.destination }, recentActionIds: partnerActivity.recentActionIds.slice(0, 5) }, ...(message ? { message } : {}) }); }
