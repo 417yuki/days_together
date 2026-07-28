@@ -1,5 +1,6 @@
 import type { CharacterId, CharacterState } from "../domain/characters/characterTypes";
 import type { MapId } from "../domain/maps/mapTypes";
+import type { ActionId } from "../domain/partner/partnerActions";
 
 export const DB_NAME = "futari-biyori";
 export const DB_VERSION = 1;
@@ -13,6 +14,7 @@ export const STORE_NAMES = {
 
 export type SaveSnapshot = {
   viewedMapId: MapId;
+  recentPartnerActionIds: ActionId[];
   characters: Array<Pick<CharacterState, "characterId" | "name" | "marker" | "mapId" | "locationId">>;
 };
 

@@ -11,7 +11,7 @@ import { Header } from "../components/Header";
 import { MapView } from "../components/MapView";
 import { RecentActivity } from "../components/RecentActivity";
 
-export type ScreenActions = { map: (id: MapId) => void; navigation: (id: NavigationId) => void; developer: (open?: boolean) => void; move: (id: CharacterId, destination: LocationRef) => void; reset: () => void };
+export type ScreenActions = { map: (id: MapId) => void; navigation: (id: NavigationId) => void; developer: (open?: boolean) => void; move: (id: CharacterId, destination: LocationRef) => void; pausePartner: () => void; resumePartner: () => void; decidePartner: () => void; reset: () => void };
 export const HomeScreen = (state: AppState, actions: ScreenActions): HTMLElement => {
   const shell = document.createElement("div"); shell.className = "app-shell"; const map = getMapById(state.viewedMapId); shell.append(Header(map, () => actions.developer(true)));
   const main = document.createElement("main");
@@ -29,7 +29,7 @@ export const HomeScreen = (state: AppState, actions: ScreenActions): HTMLElement
     pending.append(textElement("p", "ただいま準備中", "eyebrow"), textElement("h2", `${navigationLabels[state.activeNavigation]}画面は準備中です`), textElement("p", "これからの暮らしと一緒に、少しずつ増えていきます。")); main.append(pending);
   }
   shell.append(main, BottomNavigation(state.activeNavigation, actions.navigation));
-  if (state.developerPanelOpen) shell.append(DeveloperPanel(state, { close: () => actions.developer(false), interior: () => actions.map("starter_house_interior"), garden: () => actions.map("starter_garden"), moveCody: (destination) => actions.move("cody", destination), reset: actions.reset }));
+  if (state.developerPanelOpen) shell.append(DeveloperPanel(state, { close: () => actions.developer(false), interior: () => actions.map("starter_house_interior"), garden: () => actions.map("starter_garden"), moveCody: (destination) => actions.move("cody", destination), pausePartner: actions.pausePartner, resumePartner: actions.resumePartner, decidePartner: actions.decidePartner, reset: actions.reset }));
   return shell;
 };
 

@@ -4,15 +4,17 @@ import type { CharacterId } from "../domain/characters/characterTypes";
 import type { LocationRef } from "../domain/maps/mapTypes";
 import { advanceMovement, buildLocationGraph, startMovement, type MovementState } from "../domain/movement/movement";
 import { starterMaps } from "../data/starterMaps";
+import type { ActionDecisionDebug, ActionId } from "../domain/partner/partnerActions";
 
 export type NavigationId = "map" | "items" | "memories" | "partner" | "settings";
 export type SaveStatus = "available" | "failed";
-export type AppState = { viewedMapId: MapId; activeNavigation: NavigationId; developerPanelOpen: boolean; characters: CharacterState[]; movements: Partial<Record<CharacterId, MovementState>>; message: string; saveStatus: SaveStatus };
+export type PartnerActivityState = { enabled: boolean; phase: "idle" | "moving" | "acting"; actionId: ActionId | null; destination: LocationRef | null; lineId: string | null; recentActionIds: ActionId[]; lastDecision: ActionDecisionDebug | null };
+export type AppState = { viewedMapId: MapId; activeNavigation: NavigationId; developerPanelOpen: boolean; characters: CharacterState[]; movements: Partial<Record<CharacterId, MovementState>>; partnerActivity: PartnerActivityState; message: string; saveStatus: SaveStatus };
 export const initialState: AppState = {
   viewedMapId: "starter_house_interior",
   activeNavigation: "map",
   developerPanelOpen: false,
-  movements: {}, message: "場所を選んでみましょう", saveStatus: "available", characters: [
+  movements: {}, partnerActivity: { enabled: true, phase: "idle", actionId: null, destination: null, lineId: null, recentActionIds: [], lastDecision: null }, message: "場所を選んでみましょう", saveStatus: "available", characters: [
     { characterId: "user", name: "主人公", marker: "U", mapId: "starter_house_interior", locationId: "table" },
     { characterId: "cody", name: "コーディ", marker: "C", mapId: "starter_house_interior", locationId: "workbench" }
   ]
@@ -23,13 +25,15 @@ export class Store {
   private state: AppState;
   private listeners = new Set<Listener>();
   constructor(state: AppState = cloneInitialState()) { this.state = cloneState(state); }
-  getState = (): AppState => ({ ...this.state, characters: this.state.characters.map((character) => ({ ...character })), movements: { ...this.state.movements } });
+  getState = (): AppState => cloneState(this.state);
   subscribe(listener: Listener): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   private update(next: Partial<AppState>): void { this.state = { ...this.state, ...next }; this.listeners.forEach((listener) => listener(this.getState())); }
   setViewedMap(mapId: MapId): void { this.update({ viewedMapId: mapId }); }
   setNavigation(activeNavigation: NavigationId): void { this.update({ activeNavigation }); }
   toggleDeveloperPanel(force?: boolean): void { this.update({ developerPanelOpen: force ?? !this.state.developerPanelOpen }); }
   setSaveStatus(saveStatus: SaveStatus): void { if (this.state.saveStatus !== saveStatus) this.update({ saveStatus }); }
+  setPartnerActivity(partnerActivity: PartnerActivityState, message?: string): void { this.update({ partnerActivity: { ...partnerActivity, destination: partnerActivity.destination && { ...partnerActivity.destination }, recentActionIds: partnerActivity.recentActionIds.slice(0, 5) }, ...(message ? { message } : {}) }); }
+  stopCharacterMovement(characterId: CharacterId): void { const movements = { ...this.state.movements }; delete movements[characterId]; this.update({ movements }); }
   beginMovement(characterId: CharacterId, destination: LocationRef): "started" | "busy" | "invalid" | "same" {
     if (this.state.movements[characterId]) { this.update({ message: "移動中です" }); return "busy"; }
     const character = this.state.characters.find((candidate) => candidate.characterId === characterId); if (!character) return "invalid";
@@ -48,6 +52,7 @@ export class Store {
   reset(): void { this.state = cloneInitialState(); this.listeners.forEach((listener) => listener(this.getState())); }
 }
 
-const cloneInitialState = (): AppState => ({ ...initialState, characters: initialState.characters.map((character) => ({ ...character })), movements: {} });
-const cloneState = (state: AppState): AppState => ({ ...state, characters: state.characters.map((character) => ({ ...character })), movements: { ...state.movements } });
+const cloneActivity = (activity: PartnerActivityState): PartnerActivityState => ({ ...activity, destination: activity.destination && { ...activity.destination }, recentActionIds: [...activity.recentActionIds], lastDecision: activity.lastDecision && { ...activity.lastDecision, candidates: activity.lastDecision.candidates.map((candidate) => ({ ...candidate, destination: { ...candidate.destination } })), selectedDestination: { ...activity.lastDecision.selectedDestination } } });
+const cloneInitialState = (): AppState => ({ ...initialState, characters: initialState.characters.map((character) => ({ ...character })), movements: {}, partnerActivity: cloneActivity(initialState.partnerActivity) });
+const cloneState = (state: AppState): AppState => ({ ...state, characters: state.characters.map((character) => ({ ...character })), movements: { ...state.movements }, partnerActivity: cloneActivity(state.partnerActivity) });
 const locationLabel = ({ mapId, locationId }: LocationRef): string => starterMaps.find((map) => map.mapId === mapId)?.locations.find((location) => location.locationId === locationId)?.label ?? "不明な場所";

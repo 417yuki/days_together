@@ -3,18 +3,21 @@ import { starterMaps } from "../data/starterMaps";
 import type { CharacterId, CharacterState } from "../domain/characters/characterTypes";
 import type { MapId } from "../domain/maps/mapTypes";
 import { MAIN_SAVE_SLOT_ID, type SaveSnapshot, type StoredSaveData } from "./persistenceTypes";
+import { actionIds, type ActionId } from "../domain/partner/partnerActions";
 
 const characterIds: CharacterId[] = ["user", "cody"];
 const mapIds = new Set<MapId>(starterMaps.map(({ mapId }) => mapId));
 
 export const createSaveSnapshot = (state: AppState): SaveSnapshot => ({
   viewedMapId: state.viewedMapId,
+  recentPartnerActionIds: state.partnerActivity.recentActionIds.slice(0, 5),
   characters: state.characters.map(({ characterId, name, marker, mapId, locationId }) => ({ characterId, name, marker, mapId, locationId }))
 });
 
 export const restoreAppState = (initial: AppState, saved: StoredSaveData): AppState => {
   const world = record(saved.worldState);
   const viewedMapId = isMapId(world?.viewedMapId) ? world.viewedMapId : initial.viewedMapId;
+  const recentActionIds = Array.isArray(world?.recentPartnerActionIds) ? world.recentPartnerActionIds.filter(isActionId).slice(0, 5) : [];
   const validCharacters = new Map<CharacterId, CharacterState>();
   const duplicates = new Set<CharacterId>();
 
@@ -32,6 +35,7 @@ export const restoreAppState = (initial: AppState, saved: StoredSaveData): AppSt
     activeNavigation: "map",
     developerPanelOpen: false,
     movements: {},
+    partnerActivity: { ...initial.partnerActivity, enabled: true, phase: "idle", actionId: null, destination: null, lineId: null, recentActionIds, lastDecision: null },
     characters: initial.characters.map((fallback) => validCharacters.get(fallback.characterId) ?? { ...fallback })
   };
 };
@@ -47,3 +51,4 @@ const parseCharacter = (value: unknown): CharacterState | null => {
 const record = (value: unknown): Record<string, unknown> | null => typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null;
 const isMapId = (value: unknown): value is MapId => typeof value === "string" && mapIds.has(value as MapId);
 const isCharacterId = (value: unknown): value is CharacterId => typeof value === "string" && characterIds.includes(value as CharacterId);
+const isActionId = (value: unknown): value is ActionId => typeof value === "string" && actionIds.includes(value as ActionId);
