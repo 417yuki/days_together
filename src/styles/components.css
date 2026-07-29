@@ -70,3 +70,9 @@
 .custom-location-editor > label { display: grid; min-width: 0; gap: 5px; font-weight: 700; }
 .custom-location-editor input[type="text"],.custom-location-editor select { box-sizing: border-box; width: 100%; min-height: 44px; padding: 9px; font: 16px/1.5 inherit; }
 .custom-location-editor input[type="range"] { width: 100%; min-height: 44px; }
+.custom-finish-editor { display:grid; min-width:0; gap:10px; padding-top:12px; border-top:1px solid var(--color-border); }
+.custom-finish-editor > label { display:grid; min-width:0; gap:5px; font-weight:700; }
+.custom-finish-editor select { box-sizing:border-box; width:100%; min-height:44px; padding:9px; font:16px/1.5 inherit; }
+.custom-finish-editor input[type="range"] { width:100%; min-height:44px; }
+.custom-finish-marker { position:absolute; z-index:3; min-width:44px; min-height:44px; display:grid; place-items:center; transform:translate(-50%,-50%); border:2px solid var(--color-accent); border-radius:50%; background:rgb(255 250 243 / 94%); font-weight:700; }
+.custom-map-location.is-gateway::before { content:"⇄ "; }
