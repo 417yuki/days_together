@@ -6,6 +6,7 @@ import { parseCharacterPinMetadata, type CharacterPinAsset } from "../domain/ass
 import { normalizeCharacterPinVisual, type CharacterPinVisual } from "../domain/characters/characterPinVisual";
 import type { CharacterId, CharacterState } from "../domain/characters/characterTypes";
 import { parseMapBackgroundMetadata, parseMapVisual, type MapBackgroundAsset, type MapBackgroundId, type MapVisualState } from "../domain/assets/mapBackgrounds";
+import { removeDuplicateItemSlots } from "../domain/maps/mapItemSlots";
 
 export class IndexedDbSaveRepository implements SaveRepository {
   private database: Promise<IDBDatabase> | undefined;
@@ -179,6 +180,15 @@ export class IndexedDbSaveRepository implements SaveRepository {
     const ids: MapBackgroundId[] = ["starter_house_interior", "starter_garden"];
     const current = await Promise.all(ids.map(async (id) => parseMapVisual(await request(store.get([MAIN_SAVE_SLOT_ID, id])), id)));
     const next = Object.fromEntries(current.map((visual) => [visual.mapId, { ...visual, gatewayVisual: pair[visual.mapId], updatedAt: now }])) as Record<MapBackgroundId, MapVisualState>;
+    ids.forEach((id) => store.put(next[id])); await transactionDone(tx); return next;
+  }
+
+  async putItemSlotPair(pair: Record<MapBackgroundId, MapVisualState["itemSlots"]>, itemIds: string[]): Promise<Record<MapBackgroundId, MapVisualState>> {
+    const db = await this.open(); const tx = db.transaction(STORE_NAMES.mapVisuals, "readwrite"); const store = tx.objectStore(STORE_NAMES.mapVisuals); const now = new Date().toISOString();
+    const ids: MapBackgroundId[] = ["starter_house_interior", "starter_garden"], validIds = new Set(itemIds);
+    const current = await Promise.all(ids.map(async (id) => parseMapVisual(await request(store.get([MAIN_SAVE_SLOT_ID, id])), id, validIds)));
+    const clean = removeDuplicateItemSlots({ starter_house_interior: pair.starter_house_interior, starter_garden: pair.starter_garden });
+    const next = Object.fromEntries(current.map((visual) => [visual.mapId, parseMapVisual({ ...visual, itemSlots: clean[visual.mapId], updatedAt: now }, visual.mapId, validIds)])) as Record<MapBackgroundId, MapVisualState>;
     ids.forEach((id) => store.put(next[id])); await transactionDone(tx); return next;
   }
 

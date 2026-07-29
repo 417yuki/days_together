@@ -47,3 +47,8 @@
 .location-layout-preview { position: relative; width: min(100%, 240px); aspect-ratio: 3 / 4; overflow: hidden; border: 2px solid var(--color-border); border-radius: var(--radius-medium); }.location-layout-preview > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }.layout-location { position: absolute; z-index: 2; min-width: 44px; min-height: 44px; padding: 4px; transform: translate(-50%, -50%); font-size: .7rem; }.layout-location.is-selected { outline: 3px solid var(--color-accent-dark); outline-offset: 2px; font-weight: 900; }.layout-location.is-selected::before { content: "選択中 "; }
 .layout-location-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }.layout-location-list button { min-width: 0; min-height: 44px; padding-inline: 5px; overflow-wrap: anywhere; }
 .gateway-editor select { width: 100%; min-height: 44px; padding: 8px; font-size: 16px; }.gateway-dummy,.gateway-house-dummy { position: absolute; z-index: 4; min-width: 44px; min-height: 44px; padding: 8px; transform: translate(-50%,-50%); border: 2px solid var(--color-accent-dark); border-radius: 50%; background: var(--color-surface); font-size: .7rem; text-align: center; }.gateway-house-dummy { border-radius: 8px; }
+.item-slot-editor select { width: 100%; min-height: 44px; padding: 8px; font-size: 16px; }
+.item-slot-preview { background: var(--color-background); }
+.slot-preview { position: absolute; z-index: 3; min-width: 54px; min-height: 44px; padding: 4px; transform: translate(-50%, -50%); font-size: .7rem; }
+.slot-preview.is-selected { outline: 3px solid var(--color-accent-dark); outline-offset: 2px; font-weight: 900; }
+.slot-preview.is-selected::before { display: block; content: "選択中"; font-size: .62rem; }
