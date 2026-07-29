@@ -3,13 +3,12 @@ const CUSTOM_LOCATION_NAME_SELECTOR =
 const CUSTOM_LOCATION_BUTTON_SELECTOR = ".custom-location-editor button";
 
 /**
- * iPhone Safari may use a tap outside a Japanese text field only to settle the
- * IME. Run the intended custom-location button action exactly once on
- * pointerdown, then finish composition. This keeps the existing App render
- * guard, but never refocuses or selects the name field after the action.
+ * iPhone Safari can consume a button tap while Japanese text composition is
+ * still active. Intercept only that real composition window. Normal focus and
+ * ordinary input must keep the browser's native button behavior.
  */
 export const installCustomLocationImeBridge = (): void => {
-  let activeNameInput: HTMLInputElement | null = null;
+  let composingInput: HTMLInputElement | null = null;
   let replayingClick = false;
   let suppressedButton: HTMLButtonElement | null = null;
   let suppressionExpiresAt = 0;
@@ -19,18 +18,18 @@ export const installCustomLocationImeBridge = (): void => {
       ? target
       : null;
 
-  const rememberInput = (event: Event): void => {
-    const input = asNameInput(event.target);
-    if (input) activeNameInput = input;
-  };
+  document.addEventListener(
+    "compositionstart",
+    (event) => {
+      composingInput = asNameInput(event.target);
+    },
+    true
+  );
 
-  document.addEventListener("focusin", rememberInput, true);
-  document.addEventListener("input", rememberInput, true);
-  document.addEventListener("compositionstart", rememberInput, true);
   document.addEventListener(
     "compositionend",
     (event) => {
-      if (event.target === activeNameInput) activeNameInput = null;
+      if (event.target === composingInput) composingInput = null;
     },
     true
   );
@@ -38,26 +37,20 @@ export const installCustomLocationImeBridge = (): void => {
   document.addEventListener(
     "pointerdown",
     (event) => {
+      const input = composingInput;
+      if (!input) return;
+
       const target = event.target;
       const button = target instanceof Element
         ? target.closest<HTMLButtonElement>(CUSTOM_LOCATION_BUTTON_SELECTOR)
         : null;
       if (!button || button.disabled) return;
 
-      const focused = document.activeElement;
-      const input = activeNameInput
-        ?? (focused instanceof HTMLInputElement && focused.matches(CUSTOM_LOCATION_NAME_SELECTOR)
-          ? focused
-          : null);
-      if (!input) return;
-
-      // Do not let Safari turn this tap into text selection or IME settlement.
-      // The existing button click listener is invoked synchronously once here.
+      // Run the intended action while App's composition guard still protects
+      // the input node. Releasing composition afterwards performs one render
+      // with the action's updated draft.
       event.preventDefault();
       event.stopImmediatePropagation();
-
-      // Preserve the latest composing text before the button action reads the
-      // current draft. The location-name input handler does not rerender.
       input.dispatchEvent(new Event("input", { bubbles: true }));
 
       suppressedButton = button;
@@ -69,11 +62,9 @@ export const installCustomLocationImeBridge = (): void => {
         replayingClick = false;
       }
 
-      // The button action has now changed the draft. Releasing composition lets
-      // the App perform its one queued render with that updated draft.
       input.dispatchEvent(new Event("compositionend", { bubbles: true }));
       if (input.isConnected) input.blur();
-      activeNameInput = null;
+      composingInput = null;
     },
     true
   );
@@ -88,8 +79,7 @@ export const installCustomLocationImeBridge = (): void => {
         : null;
       if (!button || button !== suppressedButton || performance.now() > suppressionExpiresAt) return;
 
-      // Some Safari versions still emit a delayed native click after the
-      // pointerdown action. Suppress only that duplicate.
+      // Suppress only a delayed native duplicate after the composition rescue.
       suppressedButton = null;
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -97,10 +87,28 @@ export const installCustomLocationImeBridge = (): void => {
     true
   );
 
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    const button = target instanceof Element
+      ? target.closest<HTMLButtonElement>(CUSTOM_LOCATION_BUTTON_SELECTOR)
+      : null;
+    if (button?.textContent !== "地点を追加") return;
+
+    // App selects the newly created default name for desktop convenience.
+    // On iPhone this looks like the old field swallowed the tap, so release
+    // only that selection after the add action has completed.
+    queueMicrotask(() => {
+      const focused = document.activeElement;
+      if (focused instanceof HTMLInputElement && focused.matches(CUSTOM_LOCATION_NAME_SELECTOR)) {
+        focused.blur();
+      }
+    });
+  });
+
   document.addEventListener(
     "focusout",
     (event) => {
-      if (event.target === activeNameInput) activeNameInput = null;
+      if (event.target === composingInput) composingInput = null;
     },
     true
   );
