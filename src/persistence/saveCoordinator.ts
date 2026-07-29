@@ -8,7 +8,7 @@ import type { CharacterId } from "../domain/characters/characterTypes";
 import type { CharacterPinVisual } from "../domain/characters/characterPinVisual";
 import type { ItemImageAsset } from "../domain/assets/itemImages";
 import type { MapBackgroundAsset, MapBackgroundId } from "../domain/assets/mapBackgrounds";
-import type { CustomMapTargetId } from "../domain/maps/customMapDraft";
+import type { CustomMapLocation, CustomMapTargetId } from "../domain/maps/customMapDraft";
 
 export type LoadResult = { state: AppState; available: boolean };
 
@@ -61,6 +61,7 @@ export class SaveCoordinator {
   putItemSlotPair(pair: Record<MapBackgroundId, import("../domain/maps/mapItemSlots").MapItemSlotLayout>, itemIds: string[]) { return this.exclusive(async () => { if (!this.repository.putItemSlotPair) throw new Error("アイテム配置を保存できません"); return this.repository.putItemSlotPair(pair, itemIds); }); }
   loadCustomMapDrafts() { return this.repository.loadCustomMapDrafts?.() ?? Promise.resolve([]); }
   putCustomMapDraft(target: CustomMapTargetId, name: string, now: string) { return this.exclusive(async () => { if (!this.repository.putCustomMapDraft) throw new Error("下書きを保存できません"); return this.repository.putCustomMapDraft(target, name, now); }); }
+  putCustomMapLocations(target: CustomMapTargetId, locations: CustomMapLocation[], now: string) { return this.exclusive(async () => { if (!this.repository.putCustomMapLocations) throw new Error("地点を保存できません"); return this.repository.putCustomMapLocations(target, locations, now); }); }
   deleteCustomMapDraft(target: CustomMapTargetId) { return this.exclusive(async () => { if (!this.repository.deleteCustomMapDraft) throw new Error("下書きを削除できません"); await this.repository.deleteCustomMapDraft(target); }); }
   deleteAllCustomMapDrafts() { return this.exclusive(async () => { if (!this.repository.deleteAllCustomMapDrafts) throw new Error("下書きを削除できません"); await this.repository.deleteAllCustomMapDrafts(); }); }
   private exclusive<T>(task: () => Promise<T>): Promise<T> { const result = this.queue.then(task); this.queue = result.then(() => undefined).catch((error) => { console.error("排他データの保存に失敗しました", error); }); return result; }
