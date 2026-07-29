@@ -8,7 +8,7 @@ import type { GameItem } from "../domain/items/items";
 import type { CharacterPinAsset } from "../domain/assets/characterPins";
 import type { ItemImageAsset } from "../domain/assets/itemImages";
 import type { MapBackgroundAsset, MapBackgroundId, MapVisualState } from "../domain/assets/mapBackgrounds";
-import type { CustomMapDraft, CustomMapLocation, CustomMapTargetId } from "../domain/maps/customMapDraft";
+import type { CustomMapDraft, CustomMapFinishPair, CustomMapLocation, CustomMapTargetId } from "../domain/maps/customMapDraft";
 
 export const DB_NAME = "futari-biyori";
 export const DB_VERSION = 8;
@@ -73,6 +73,7 @@ export interface SaveRepository {
   loadCustomMapDrafts?(): Promise<unknown[]>;
   putCustomMapDraft?(targetMapId: CustomMapTargetId, name: string, now: string): Promise<CustomMapDraft>;
   putCustomMapLocations?(targetMapId: CustomMapTargetId, locations: CustomMapLocation[], now: string): Promise<CustomMapDraft>;
+  putCustomMapFinishPair?(pair: CustomMapFinishPair, itemIds: string[], now: string): Promise<Record<CustomMapTargetId, CustomMapDraft>>;
   deleteCustomMapDraft?(targetMapId: CustomMapTargetId): Promise<void>;
   deleteAllCustomMapDrafts?(): Promise<void>;
 }
