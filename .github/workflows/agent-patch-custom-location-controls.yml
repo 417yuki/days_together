@@ -1,0 +1,97 @@
+name: One-time custom location control patch
+
+on:
+  push:
+    branches:
+      - agent/fix-custom-location-native-controls
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fix-custom-location-native-controls
+      - name: Patch custom location controls
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/ui/screens/SettingsScreen.ts')
+          source = path.read_text()
+
+          anchor = '''const button = (label: string, action: () => void, disabled = false): HTMLButtonElement => {
+            const element = document.createElement("button");
+            element.type = "button";
+            element.textContent = label;
+            element.disabled = disabled;
+            element.addEventListener("click", action);
+            return element;
+          };
+          '''
+          helper = anchor + '''
+          const customLocationButton = (label: string, action: () => void, disabled = false): HTMLButtonElement => {
+            const element = document.createElement("button");
+            element.type = "button";
+            element.textContent = label;
+            element.disabled = disabled;
+            let suppressClickUntil = 0;
+
+            element.addEventListener("pointerdown", (event) => {
+              if (element.disabled || event.pointerType === "mouse") return;
+              event.preventDefault();
+              suppressClickUntil = performance.now() + 750;
+              action();
+              queueMicrotask(() => {
+                const active = document.activeElement;
+                if (active instanceof HTMLInputElement && active.closest(".custom-location-editor")) active.blur();
+              });
+            });
+
+            element.addEventListener("click", (event) => {
+              if (performance.now() < suppressClickUntil) {
+                event.preventDefault();
+                return;
+              }
+              action();
+            });
+            return element;
+          };
+          '''
+          if anchor not in source:
+              raise SystemExit('button helper anchor not found')
+          source = source.replace(anchor, helper, 1)
+
+          replacements = {
+            'const marker = button(location.label, () => actions.selectCustomMapLocation(id, location.locationId), ui.busy);':
+              'const marker = customLocationButton(location.label, () => actions.selectCustomMapLocation(id, location.locationId), ui.busy);',
+            'const choice = button(location.label, () => actions.selectCustomMapLocation(id, location.locationId), ui.busy);':
+              'const choice = customLocationButton(location.label, () => actions.selectCustomMapLocation(id, location.locationId), ui.busy);',
+            'button("地点を追加", () => actions.addCustomMapLocation(id), ui.busy || ui.locationDraft.length >= 8),':
+              'customLocationButton("地点を追加", () => actions.addCustomMapLocation(id), ui.busy || ui.locationDraft.length >= 8),',
+            'button("この地点を削除", () => actions.deleteCustomMapLocation(id), ui.busy || ui.locationDraft.length <= 1),':
+              'customLocationButton("この地点を削除", () => actions.deleteCustomMapLocation(id), ui.busy || ui.locationDraft.length <= 1),',
+            'button("地点設定を保存", () => actions.saveCustomMapLocations(id), ui.busy),':
+              'customLocationButton("地点設定を保存", () => actions.saveCustomMapLocations(id), ui.busy),',
+            'button("キャンセル", () => actions.cancelCustomMapLocations(id), ui.busy)':
+              'customLocationButton("キャンセル", () => actions.cancelCustomMapLocations(id), ui.busy)'
+          }
+          for old, new in replacements.items():
+              if old not in source:
+                  raise SystemExit(f'control anchor not found: {old}')
+              source = source.replace(old, new, 1)
+
+          path.write_text(source)
+          Path('.github/workflows/agent-patch-custom-location-controls.yml').unlink()
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/ui/screens/SettingsScreen.ts .github/workflows/agent-patch-custom-location-controls.yml
+          git commit -m "fix: use native touch controls for custom locations"
+          git push origin HEAD:agent/fix-custom-location-native-controls
