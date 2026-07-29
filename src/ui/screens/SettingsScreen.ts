@@ -408,34 +408,6 @@ const button = (label: string, action: () => void, disabled = false): HTMLButton
   element.addEventListener("click", action);
   return element;
 };
-
-const customLocationButton = (label: string, action: () => void, disabled = false): HTMLButtonElement => {
-  const element = document.createElement("button");
-  element.type = "button";
-  element.textContent = label;
-  element.disabled = disabled;
-  let suppressClickUntil = 0;
-
-  element.addEventListener("pointerdown", (event) => {
-    if (element.disabled || event.pointerType === "mouse") return;
-    event.preventDefault();
-    suppressClickUntil = performance.now() + 750;
-    action();
-    queueMicrotask(() => {
-      const active = document.activeElement;
-      if (active instanceof HTMLInputElement && active.closest(".custom-location-editor")) active.blur();
-    });
-  });
-
-  element.addEventListener("click", (event) => {
-    if (performance.now() < suppressClickUntil) {
-      event.preventDefault();
-      return;
-    }
-    action();
-  });
-  return element;
-};
 const formatBytes = (bytes: number): string => bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KiB` : `${(bytes / 1024 / 1024).toFixed(1)} MiB`;
 
 const customMapDraftSection = (
@@ -643,9 +615,18 @@ const customFinishEditor = (state: AppState, backgrounds: Record<MapBackgroundId
   return root;
 };
 
-const customLocationEditor = (id: CustomMapTargetId, mapLabel: string, backgroundUrl: string | null, ui: CustomMapDraftUi, actions: SettingsActions): HTMLElement => {
+export const customLocationEditorStateKey = (ui: CustomMapDraftUi, backgroundUrl: string | null): string => JSON.stringify({
+  selectedLocationId: ui.selectedLocationId,
+  busy: ui.busy,
+  backgroundUrl,
+  locations: ui.locationDraft
+});
+
+export const customLocationEditor = (id: CustomMapTargetId, mapLabel: string, backgroundUrl: string | null, ui: CustomMapDraftUi, actions: Pick<SettingsActions, "selectCustomMapLocation" | "addCustomMapLocation" | "updateCustomMapLocation" | "deleteCustomMapLocation" | "saveCustomMapLocations" | "cancelCustomMapLocations">): HTMLElement => {
   const root = document.createElement("section");
   root.className = "custom-location-editor";
+  root.dataset.customMapId = id;
+  root.dataset.customMapState = customLocationEditorStateKey(ui, backgroundUrl);
   const selected = ui.locationDraft.find((item) => item.locationId === ui.selectedLocationId) ?? ui.locationDraft[0];
   root.append(text("h4", "カスタム地点"), text("p", `${ui.record?.name ?? "下書き"}・${mapLabel}・${ui.locationDraft.length}/8件`), text("p", "通常マップへ未反映です。"));
   const preview = document.createElement("div");
@@ -658,7 +639,7 @@ const customLocationEditor = (id: CustomMapTargetId, mapLabel: string, backgroun
     preview.append(image);
   }
   ui.locationDraft.forEach((location) => {
-    const marker = customLocationButton(location.label, () => actions.selectCustomMapLocation(id, location.locationId), ui.busy);
+    const marker = button(location.label, () => actions.selectCustomMapLocation(id, location.locationId), ui.busy);
     marker.className = `custom-map-location${location.locationId === selected?.locationId ? " is-selected" : ""}`;
     marker.style.left = `${location.position.x * 100}%`;
     marker.style.top = `${location.position.y * 100}%`;
@@ -669,7 +650,7 @@ const customLocationEditor = (id: CustomMapTargetId, mapLabel: string, backgroun
   const list = document.createElement("div");
   list.className = "custom-location-list";
   ui.locationDraft.forEach((location) => {
-    const choice = customLocationButton(location.label, () => actions.selectCustomMapLocation(id, location.locationId), ui.busy);
+    const choice = button(location.label, () => actions.selectCustomMapLocation(id, location.locationId), ui.busy);
     if (location.locationId === selected?.locationId) choice.setAttribute("aria-current", "true");
     list.append(choice);
   });
@@ -680,9 +661,13 @@ const customLocationEditor = (id: CustomMapTargetId, mapLabel: string, backgroun
     name.type = "text";
     name.maxLength = 24;
     name.value = selected.label;
+    name.className = "custom-location-name";
     name.dataset.focusKey = `custom-location-name-${id}-${selected.locationId}`;
     nameLabel.append(text("span", "地点名"), name);
-    name.addEventListener("input", () => actions.updateCustomMapLocation(id, selected.locationId, { label: name.value }));
+    name.addEventListener("input", () => {
+      actions.updateCustomMapLocation(id, selected.locationId, { label: name.value });
+      root.dataset.customMapState = customLocationEditorStateKey(ui, backgroundUrl);
+    });
     root.append(nameLabel);
     const typeLabel = document.createElement("label");
     const select = document.createElement("select");
@@ -714,10 +699,10 @@ const customLocationEditor = (id: CustomMapTargetId, mapLabel: string, backgroun
   const controls = document.createElement("div");
   controls.className = "pin-visual-actions";
   controls.append(
-    customLocationButton("地点を追加", () => actions.addCustomMapLocation(id), ui.busy || ui.locationDraft.length >= 8),
-    customLocationButton("この地点を削除", () => actions.deleteCustomMapLocation(id), ui.busy || ui.locationDraft.length <= 1),
-    customLocationButton("地点設定を保存", () => actions.saveCustomMapLocations(id), ui.busy),
-    customLocationButton("キャンセル", () => actions.cancelCustomMapLocations(id), ui.busy)
+    button("地点を追加", () => actions.addCustomMapLocation(id), ui.busy || ui.locationDraft.length >= 8),
+    button("この地点を削除", () => actions.deleteCustomMapLocation(id), ui.busy || ui.locationDraft.length <= 1),
+    button("地点設定を保存", () => actions.saveCustomMapLocations(id), ui.busy),
+    button("キャンセル", () => actions.cancelCustomMapLocations(id), ui.busy)
   );
   root.append(controls);
   return root;
