@@ -10,6 +10,7 @@ import { parseAppliedExtension, parsePendingConsultation } from "../domain/consu
 import { isSafeAssetId } from "../domain/assets/itemImages";
 import { mergeStarterItems } from "../domain/items/items";
 import { MAP_BACKGROUND_IDS, parseMapVisual } from "../domain/assets/mapBackgrounds";
+import { removeDuplicateItemSlots } from "../domain/maps/mapItemSlots";
 import { normalizeCharacterPinVisual } from "../domain/characters/characterPinVisual";
 
 const characterIds: CharacterId[] = ["user", "cody"];
@@ -60,7 +61,11 @@ export const restoreAppState = (initial: AppState, saved: StoredSaveData, now = 
   });
   duplicates.forEach((id) => validCharacters.delete(id));
 
-  const mapVisuals = Object.fromEntries(MAP_BACKGROUND_IDS.map((mapId) => [mapId, parseMapVisual((saved.mapVisuals ?? []).find((value) => value && typeof value === "object" && (value as { mapId?: unknown }).mapId === mapId), mapId)])) as AppState["mapVisuals"];
+  const items = mergeStarterItems(saved.items ?? []);
+  const itemIds = new Set(items.map((item) => item.itemId));
+  const parsedVisuals = Object.fromEntries(MAP_BACKGROUND_IDS.map((mapId) => [mapId, parseMapVisual((saved.mapVisuals ?? []).find((value) => value && typeof value === "object" && (value as { mapId?: unknown }).mapId === mapId), mapId, itemIds)])) as AppState["mapVisuals"];
+  const slots = removeDuplicateItemSlots({ starter_house_interior: parsedVisuals.starter_house_interior.itemSlots, starter_garden: parsedVisuals.starter_garden.itemSlots });
+  const mapVisuals = Object.fromEntries(MAP_BACKGROUND_IDS.map((id) => [id, { ...parsedVisuals[id], itemSlots: slots[id] }])) as AppState["mapVisuals"];
 
   return {
     ...initial,
@@ -78,7 +83,7 @@ export const restoreAppState = (initial: AppState, saved: StoredSaveData, now = 
     partnerActivity: { ...initial.partnerActivity, enabled: true, phase: "idle", actionId: null, destination: null, lineId: null, recentActionIds, lastDecision: null },
     partnerProfile, partnerDialogues, partnerHistory: partnerHistory.length ? partnerHistory : [{ profile: codyPresetProfile, dialogues: codyPresetDialogues }], pendingPartnerConsultation, partnerView: "profile", partnerResponse: "", partnerPreview: null, selectedPartnerRevision: null, partnerMessage: "",
     characters: initial.characters.map((fallback) => { const restored = validCharacters.get(fallback.characterId) ?? { ...fallback }; return restored.characterId === "cody" ? { ...restored, name: partnerProfile.displayName } : restored; }),
-    items: mergeStarterItems(saved.items ?? []), itemView: "list", selectedItemId: null, itemMessage: "", itemDraft: createEmptyItemDraft()
+    items, itemView: "list", selectedItemId: null, itemMessage: "", itemDraft: createEmptyItemDraft()
   };
 };
 

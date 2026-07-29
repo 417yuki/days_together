@@ -5,6 +5,9 @@ import type { LocationDefinition, MapDefinition, MapId } from "../../domain/maps
 import { unknownSproutDefinition, type UnknownSproutState } from "../../domain/events/unknownSprout";
 import { characterPinStyle, normalizeCharacterPinVisual } from "../../domain/characters/characterPinVisual";
 import type { MapGatewayVisual } from "../../domain/maps/mapGatewayVisual";
+import type { GameItem } from "../../domain/items/items";
+import { resolvePlacedItems, type MapItemSlotLayout } from "../../domain/maps/mapItemSlots";
+import { ItemIcon } from "../icons/itemIcons";
 
 type MapViewOptions = {
   map: MapDefinition;
@@ -19,9 +22,12 @@ type MapViewOptions = {
   characterImages?: Partial<Record<"user" | "cody", string>>;
   backgroundUrl?: string;
   gatewayVisual: MapGatewayVisual;
+  itemSlots: MapItemSlotLayout;
+  items: GameItem[];
+  onItem: (itemId: string) => void;
 };
 
-export const MapView = ({ map, characters, characterImages = {}, backgroundUrl, gatewayVisual, feedback: feedbackText, onMapChange, onLocation, onHouse, onResidents, unknownSprout, onEvent }: MapViewOptions): HTMLElement => {
+export const MapView = ({ map, characters, characterImages = {}, backgroundUrl, gatewayVisual, itemSlots, items, onItem, feedback: feedbackText, onMapChange, onLocation, onHouse, onResidents, unknownSprout, onEvent }: MapViewOptions): HTMLElement => {
   const section = document.createElement("section"); section.className = "map-section"; section.setAttribute("aria-labelledby", "map-heading");
   const heading = document.createElement("h2"); heading.id = "map-heading"; heading.className = "visually-hidden"; heading.textContent = `${map.name}のマップ`;
   const tabs = document.createElement("div"); tabs.className = "map-tabs"; tabs.setAttribute("role", "group"); tabs.setAttribute("aria-label", "表示するマップ");
@@ -35,6 +41,7 @@ export const MapView = ({ map, characters, characterImages = {}, backgroundUrl, 
     const description = document.createElement("span"); description.textContent = "家の外観";
     house.append(roof, name, description); house.style.left = `${gatewayVisual.entryAffordancePosition!.x * 100}%`; house.style.top = `${gatewayVisual.entryAffordancePosition!.y * 100}%`; house.dataset.focusKey = `house-${map.mapId}`; house.setAttribute("aria-label", "家の外観。家の中を見る"); house.addEventListener("click", onHouse); canvas.append(house);
   }
+  resolvePlacedItems(itemSlots, items).forEach(({ slotId, position, item }) => { const placed = document.createElement("button"); placed.type = "button"; placed.className = "map-item"; placed.dataset.focusKey = `item-${slotId}`; placed.style.left = `${position.x * 100}%`; placed.style.top = `${position.y * 100}%`; placed.setAttribute("aria-label", `${item.name}の詳細を見る`); const name = document.createElement("span"); name.textContent = item.name; placed.append(ItemIcon(item.visual.iconKey), name); placed.addEventListener("click", () => onItem(item.itemId)); canvas.append(placed); });
   map.locations.forEach((location) => { const button = document.createElement("button"); button.type = "button"; button.className = "map-location"; button.dataset.focusKey = `location-${map.mapId}-${location.locationId}`; button.textContent = location.label; positionAt(button, location); button.addEventListener("click", () => onLocation(location)); canvas.append(button); });
   if (map.mapId === unknownSproutDefinition.mapId && unknownSprout.status !== "locked") {
     const marker = document.createElement("button"); marker.type = "button"; marker.className = `event-marker event-marker--${unknownSprout.stage}`; marker.dataset.focusKey = "event-unknown_sprout";

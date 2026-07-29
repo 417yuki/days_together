@@ -57,5 +57,6 @@ export class SaveCoordinator {
   deleteMapBackground(mapId: MapBackgroundId) { return this.exclusive(async () => { if (!this.repository.deleteMapBackground) throw new Error("背景を削除できません"); return this.repository.deleteMapBackground(mapId); }); }
   putLocationLayout(mapId: MapBackgroundId, layout: import("../domain/maps/locationLayout").LocationLayout) { return this.exclusive(async () => { if (!this.repository.putLocationLayout) throw new Error("地点配置を保存できません"); return this.repository.putLocationLayout(mapId, layout); }); }
   putGatewayVisualPair(pair: Record<MapBackgroundId, import("../domain/maps/mapGatewayVisual").MapGatewayVisual>) { return this.exclusive(async () => { if (!this.repository.putGatewayVisualPair) throw new Error("出入口設定を保存できません"); return this.repository.putGatewayVisualPair(pair); }); }
+  putItemSlotPair(pair: Record<MapBackgroundId, import("../domain/maps/mapItemSlots").MapItemSlotLayout>, itemIds: string[]) { return this.exclusive(async () => { if (!this.repository.putItemSlotPair) throw new Error("アイテム配置を保存できません"); return this.repository.putItemSlotPair(pair, itemIds); }); }
   private exclusive<T>(task: () => Promise<T>): Promise<T> { const result = this.queue.then(task); this.queue = result.then(() => undefined).catch((error) => { console.error("排他データの保存に失敗しました", error); }); return result; }
 }
