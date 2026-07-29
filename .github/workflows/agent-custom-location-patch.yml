@@ -1,23 +1,21 @@
 name: Temporary custom location patch
 
 on:
-  pull_request_target:
-    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   patch:
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'agent/replace-custom-location-ime-bridge'
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }}
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: agent/replace-custom-location-ime-bridge
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Restore native custom location controls
         run: |
@@ -104,4 +102,4 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add src/app/App.ts src/main.ts src/app/customLocationImeBridge.ts
           git commit -m "fix: restore native custom location controls"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          git push origin HEAD:agent/replace-custom-location-ime-bridge
