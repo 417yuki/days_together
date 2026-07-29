@@ -50,8 +50,9 @@ export const restoreCustomMapFinishPair = (drafts: Record<CustomMapTargetId, Cus
   const locationIds = Object.fromEntries(CUSTOM_MAP_TARGET_IDS.map((id) => [id, new Set(drafts[id].locations.map((location) => location.locationId))])) as Record<CustomMapTargetId, Set<string>>;
   const savedInterior = drafts.starter_house_interior.gatewayVisual?.gatewayLocationId, savedGarden = drafts.starter_garden.gatewayVisual?.gatewayLocationId;
   const savedPairValid = locationIds.starter_house_interior.has(savedInterior ?? "") && locationIds.starter_garden.has(savedGarden ?? "");
+  const savedPairMissing = savedInterior === undefined && savedGarden === undefined;
   const currentPairValid = locationIds.starter_house_interior.has(currentGateway.starter_house_interior.gatewayLocationId) && locationIds.starter_garden.has(currentGateway.starter_garden.gatewayLocationId);
-  const gatewayIds = savedPairValid ? [savedInterior!, savedGarden!] : currentPairValid ? [currentGateway.starter_house_interior.gatewayLocationId, currentGateway.starter_garden.gatewayLocationId] : [drafts.starter_house_interior.locations[0]?.locationId ?? "", drafts.starter_garden.locations[0]?.locationId ?? ""];
+  const gatewayIds = savedPairValid ? [savedInterior!, savedGarden!] : savedPairMissing && currentPairValid ? [currentGateway.starter_house_interior.gatewayLocationId, currentGateway.starter_garden.gatewayLocationId] : [drafts.starter_house_interior.locations[0]?.locationId ?? "", drafts.starter_garden.locations[0]?.locationId ?? ""];
   const rawSlots = Object.fromEntries(CUSTOM_MAP_TARGET_IDS.map((id) => [id, restoreItemSlots(id, drafts[id].itemSlots ?? currentSlots[id], new Set(itemIds))])) as MapItemSlotPair;
   const slots = removeDuplicateItemSlots(rawSlots);
   return {
