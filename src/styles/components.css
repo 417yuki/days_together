@@ -52,3 +52,12 @@
 .slot-preview { position: absolute; z-index: 3; min-width: 54px; min-height: 44px; padding: 4px; transform: translate(-50%, -50%); font-size: .7rem; }
 .slot-preview.is-selected { outline: 3px solid var(--color-accent-dark); outline-offset: 2px; font-weight: 900; }
 .slot-preview.is-selected::before { display: block; content: "選択中"; font-size: .62rem; }
+.custom-map-drafts,.custom-map-draft-card { display: grid; min-width: 0; gap: 10px; }
+.custom-map-draft-card { padding-top: 12px; border-top: 1px solid var(--color-border); }
+.custom-map-draft-card h3,.custom-map-draft-card p { margin: 0; }
+.custom-map-draft-card > label { display: grid; gap: 5px; font-weight: 700; }
+.custom-map-draft-card input { box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px; font: 16px/1.5 inherit; }
+.custom-map-draft-card > button { min-height: 44px; }
+.custom-map-preview { position: relative; width: min(100%,240px); aspect-ratio: 3 / 4; overflow: hidden; border: 2px solid var(--color-border); border-radius: var(--radius-medium); }
+.custom-map-preview > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.custom-map-location { position: absolute; z-index: 2; min-width: 44px; min-height: 44px; padding: 5px; transform: translate(-50%,-50%); border: 1px solid var(--color-border); border-radius: var(--radius-small); background: rgb(255 250 243 / 94%); font-size: .7rem; font-weight: 700; text-align: center; pointer-events: none; }
