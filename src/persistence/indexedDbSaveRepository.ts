@@ -7,6 +7,7 @@ import { normalizeCharacterPinVisual, type CharacterPinVisual } from "../domain/
 import type { CharacterId, CharacterState } from "../domain/characters/characterTypes";
 import { parseMapBackgroundMetadata, parseMapVisual, type MapBackgroundAsset, type MapBackgroundId, type MapVisualState } from "../domain/assets/mapBackgrounds";
 import { removeDuplicateItemSlots } from "../domain/maps/mapItemSlots";
+import { normalizeCustomMapName, parseCustomMapDraft, type CustomMapDraft, type CustomMapTargetId } from "../domain/maps/customMapDraft";
 
 export class IndexedDbSaveRepository implements SaveRepository {
   private database: Promise<IDBDatabase> | undefined;
@@ -37,7 +38,7 @@ export class IndexedDbSaveRepository implements SaveRepository {
     const now = new Date().toISOString();
     const slots = transaction.objectStore(STORE_NAMES.saveSlots);
     const existing = await request<Record<string, unknown> | undefined>(slots.get(MAIN_SAVE_SLOT_ID));
-    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 7, updatedAt: now });
+    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 8, updatedAt: now });
     slots.put({ saveSlotId: MAIN_SAVE_SLOT_ID, createdAt: typeof existing?.createdAt === "string" ? existing.createdAt : now, updatedAt: now });
     transaction.objectStore(STORE_NAMES.worldStates).put({ saveSlotId: MAIN_SAVE_SLOT_ID, viewedMapId: snapshot.viewedMapId, recentPartnerActionIds: snapshot.recentPartnerActionIds, worldStartedOn: snapshot.worldStartedOn });
     const characters = transaction.objectStore(STORE_NAMES.characters);
@@ -66,7 +67,7 @@ export class IndexedDbSaveRepository implements SaveRepository {
     const now = new Date().toISOString();
     const slots = transaction.objectStore(STORE_NAMES.saveSlots);
     const existingSlot = await request<Record<string, unknown> | undefined>(slots.get(MAIN_SAVE_SLOT_ID));
-    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 7, updatedAt: now });
+    transaction.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 8, updatedAt: now });
     slots.put({ saveSlotId: MAIN_SAVE_SLOT_ID, createdAt: typeof existingSlot?.createdAt === "string" ? existingSlot.createdAt : now, updatedAt: now });
     transaction.objectStore(STORE_NAMES.partnerProfiles).put({ saveSlotId: MAIN_SAVE_SLOT_ID, ...next.profile });
     transaction.objectStore(STORE_NAMES.partnerProfileHistory).put({ saveSlotId: MAIN_SAVE_SLOT_ID, profileId: "main_partner", revision: next.profile.revision, ...next });
@@ -192,6 +193,12 @@ export class IndexedDbSaveRepository implements SaveRepository {
     ids.forEach((id) => store.put(next[id])); await transactionDone(tx); return next;
   }
 
+
+  async loadCustomMapDrafts(): Promise<unknown[]> { const db = await this.open(); const tx = db.transaction(STORE_NAMES.customMapDrafts, "readonly"); const values = await request<unknown[]>(tx.objectStore(STORE_NAMES.customMapDrafts).getAll(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"]))); await transactionDone(tx); return values; }
+  async putCustomMapDraft(targetMapId: CustomMapTargetId, name: string, now: string): Promise<CustomMapDraft> { const db = await this.open(); const tx = db.transaction(STORE_NAMES.customMapDrafts, "readwrite"); const store = tx.objectStore(STORE_NAMES.customMapDrafts); const existing = parseCustomMapDraft(await request(store.get([MAIN_SAVE_SLOT_ID, targetMapId])), targetMapId); const draft: CustomMapDraft = { saveSlotId: MAIN_SAVE_SLOT_ID, targetMapId, name: normalizeCustomMapName(name, targetMapId), status: "draft", createdAt: existing?.createdAt ?? now, updatedAt: now }; store.put(draft); await transactionDone(tx); return draft; }
+  async deleteCustomMapDraft(targetMapId: CustomMapTargetId): Promise<void> { const db = await this.open(); const tx = db.transaction(STORE_NAMES.customMapDrafts, "readwrite"); tx.objectStore(STORE_NAMES.customMapDrafts).delete([MAIN_SAVE_SLOT_ID, targetMapId]); await transactionDone(tx); }
+  async deleteAllCustomMapDrafts(): Promise<void> { const db = await this.open(); const tx = db.transaction(STORE_NAMES.customMapDrafts, "readwrite"); const store = tx.objectStore(STORE_NAMES.customMapDrafts); const keys = await request<IDBValidKey[]>(store.getAllKeys(IDBKeyRange.bound([MAIN_SAVE_SLOT_ID, ""], [MAIN_SAVE_SLOT_ID, "\uffff"]))); keys.forEach((key) => store.delete(key)); await transactionDone(tx); }
+
   private open(): Promise<IDBDatabase> {
     if (this.database) return this.database;
     this.database = new Promise((resolve, reject) => {
@@ -212,6 +219,8 @@ export class IndexedDbSaveRepository implements SaveRepository {
         if (!db.objectStoreNames.contains(STORE_NAMES.assets)) db.createObjectStore(STORE_NAMES.assets, { keyPath: ["saveSlotId", "assetId"] });
         if (!db.objectStoreNames.contains(STORE_NAMES.mapVisuals)) db.createObjectStore(STORE_NAMES.mapVisuals, { keyPath: ["saveSlotId", "mapId"] });
         if (!db.objectStoreNames.contains(STORE_NAMES.assetBlobs)) db.createObjectStore(STORE_NAMES.assetBlobs, { keyPath: ["saveSlotId", "assetId"] });
+        if (!db.objectStoreNames.contains(STORE_NAMES.customMapDrafts)) db.createObjectStore(STORE_NAMES.customMapDrafts, { keyPath: ["saveSlotId", "targetMapId"] });
+        openRequest.transaction?.objectStore(STORE_NAMES.appMeta).put({ key: "schema", schemaVersion: 8, updatedAt: new Date().toISOString() });
       };
       openRequest.onerror = () => reject(openRequest.error ?? new Error("IndexedDBを開けませんでした"));
       openRequest.onblocked = () => reject(new Error("IndexedDBの更新がブロックされました"));

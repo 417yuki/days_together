@@ -8,15 +8,16 @@ import type { GameItem } from "../domain/items/items";
 import type { CharacterPinAsset } from "../domain/assets/characterPins";
 import type { ItemImageAsset } from "../domain/assets/itemImages";
 import type { MapBackgroundAsset, MapBackgroundId, MapVisualState } from "../domain/assets/mapBackgrounds";
+import type { CustomMapDraft, CustomMapTargetId } from "../domain/maps/customMapDraft";
 
 export const DB_NAME = "futari-biyori";
-export const DB_VERSION = 7;
+export const DB_VERSION = 8;
 export const MAIN_SAVE_SLOT_ID = "main";
 export const STORE_NAMES = {
   appMeta: "appMeta", mapVisuals: "mapVisuals",
   saveSlots: "saveSlots",
   worldStates: "worldStates",
-  characters: "characters", events: "events", consultations: "consultations", checkpoints: "checkpoints", partnerProfiles: "partnerProfiles", partnerProfileHistory: "partnerProfileHistory", dialogues: "dialogues", items: "items", assets: "assets", assetBlobs: "assetBlobs"
+  characters: "characters", events: "events", consultations: "consultations", checkpoints: "checkpoints", partnerProfiles: "partnerProfiles", partnerProfileHistory: "partnerProfileHistory", dialogues: "dialogues", items: "items", assets: "assets", assetBlobs: "assetBlobs", customMapDrafts: "customMapDrafts"
 } as const;
 
 export type SaveSnapshot = {
@@ -69,4 +70,8 @@ export interface SaveRepository {
   putLocationLayout?(mapId: MapBackgroundId, layout: MapVisualState["locationLayout"]): Promise<MapVisualState>;
   putGatewayVisualPair?(pair: Record<MapBackgroundId, MapVisualState["gatewayVisual"]>): Promise<Record<MapBackgroundId, MapVisualState>>;
   putItemSlotPair?(pair: Record<MapBackgroundId, MapVisualState["itemSlots"]>, itemIds: string[]): Promise<Record<MapBackgroundId, MapVisualState>>;
+  loadCustomMapDrafts?(): Promise<unknown[]>;
+  putCustomMapDraft?(targetMapId: CustomMapTargetId, name: string, now: string): Promise<CustomMapDraft>;
+  deleteCustomMapDraft?(targetMapId: CustomMapTargetId): Promise<void>;
+  deleteAllCustomMapDrafts?(): Promise<void>;
 }
