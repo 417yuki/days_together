@@ -1,4 +1,5 @@
 import { App } from "./app/App";
+import { installCustomLocationImeBridge } from "./app/customLocationImeBridge";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/layout.css";
@@ -13,6 +14,8 @@ if (!root) throw new Error("App root was not found");
 const loading = document.createElement("p");
 loading.className = "startup-status"; loading.setAttribute("role", "status"); loading.textContent = "ふたりの暮らしを読み込んでいます…";
 root.replaceChildren(loading);
+
+installCustomLocationImeBridge();
 
 const repository = new IndexedDbSaveRepository();
 const start = async (): Promise<void> => {
